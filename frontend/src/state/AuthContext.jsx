@@ -8,8 +8,20 @@ export function AuthProvider({ children }){
   const [user, setUser] = useState(null)
 
   useEffect(()=>{
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    // Restore login state from localStorage on page load
+    const savedToken = localStorage.getItem('token')
+    const savedUser = localStorage.getItem('user')
+    
+    if (savedToken && savedUser) {
+      try {
+        setToken(savedToken)
+        setUser(JSON.parse(savedUser))
+      } catch (err) {
+        // If parsing fails, clear invalid data
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+      }
+    }
   }, [])
 
   useEffect(()=>{

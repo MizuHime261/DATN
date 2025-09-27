@@ -52,6 +52,7 @@ export default function AdminUsers(){
   const [sortKey, setSortKey] = useState('id')
   const [sortDir, setSortDir] = useState('asc')
   const [filterGender, setFilterGender] = useState('')
+  const [filterRole, setFilterRole] = useState('')
   const hiddenDateRef = useRef(null)
 
   async function loadByRole(role){
@@ -235,6 +236,14 @@ export default function AdminUsers(){
                       <option value="MALE">Nam</option>
                       <option value="FEMALE">Nữ</option>
                     </select>
+                    <select className="input user-toolbar__item" value={filterRole} onChange={e=>{ setFilterRole(e.target.value); setCurrentPage(1) }}>
+                      <option value="">Quyền: tất cả</option>
+                      <option value="ADMIN">Admin</option>
+                      <option value="TEACHER">Giáo viên</option>
+                      <option value="STAFF">Nhân viên</option>
+                      <option value="STUDENT">Học sinh</option>
+                      <option value="PARENT">Phụ huynh</option>
+                    </select>
                   </div>
                   <TableWithPaging
                     rows={roleLists[activeRole]}
@@ -247,6 +256,7 @@ export default function AdminUsers(){
                     activeRole={activeRole}
                     onReload={()=>loadByRole(activeRole)}
                     filterGender={filterGender}
+                    filterRole={filterRole}
                   />
                 </>
               )}
@@ -321,6 +331,7 @@ function EditableRow({ user, onUpdated, onDeleted }){
         <td>{formatIsoToDdMmYyyy(user.birthdate)}</td>
         <td>{user.email}</td>
         <td>{user.phone}</td>
+        <td>{roleLabel[user.role] || user.role}</td>
         <td>
           <button className="icon-btn" onClick={()=>setEditing(true)} title="Chỉnh sửa">✏️</button>
           <button className="icon-btn" onClick={remove} title="Xóa" style={{marginLeft:8}}>🗑️</button>
@@ -350,6 +361,15 @@ function EditableRow({ user, onUpdated, onDeleted }){
       <td><input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder={(role === 'STUDENT' || role === 'PARENT') ? 'Email (không bắt buộc)' : 'Email'} /></td>
       <td><input className="input" value={phone} onChange={e=>setPhone(e.target.value)} /></td>
       <td>
+        <select className="input" value={role} onChange={e=>setRole(e.target.value)}>
+          <option value="ADMIN">Admin</option>
+          <option value="TEACHER">Giáo viên</option>
+          <option value="STAFF">Nhân viên</option>
+          <option value="STUDENT">Học sinh</option>
+          <option value="PARENT">Phụ huynh</option>
+        </select>
+      </td>
+      <td>
         <button className="btn" onClick={save}>Lưu</button>
         <button className="btn secondary" onClick={()=>setEditing(false)} style={{marginLeft:8}}>Hủy</button>
       </td>
@@ -357,13 +377,14 @@ function EditableRow({ user, onUpdated, onDeleted }){
   )
 }
 
-function TableWithPaging({ rows, searchQuery, sortKey, sortDir, pageSize, currentPage, setCurrentPage, activeRole, onReload, filterGender }){
+function TableWithPaging({ rows, searchQuery, sortKey, sortDir, pageSize, currentPage, setCurrentPage, activeRole, onReload, filterGender, filterRole }){
   const q = (searchQuery || '').toLowerCase().trim()
   const filtered = q ? rows.filter(u =>
     (u.username || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)
   ) : rows
   const genderFiltered = filterGender ? filtered.filter(u => normalizeGender(u.gender) === filterGender) : filtered
-  const sorted = [...genderFiltered].sort((a,b)=>{
+  const roleFiltered = filterRole ? genderFiltered.filter(u => u.role === filterRole) : genderFiltered
+  const sorted = [...roleFiltered].sort((a,b)=>{
     const dir = sortDir === 'desc' ? -1 : 1
     if (sortKey === 'username'){
       const av = (a.username || '').toLowerCase()
@@ -385,7 +406,7 @@ function TableWithPaging({ rows, searchQuery, sortKey, sortDir, pageSize, curren
     <>
       <div className="table-responsive">
         <table>
-          <thead><tr><th>ID</th><th>Họ và tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Email</th><th>Phone</th><th></th></tr></thead>
+          <thead><tr><th>ID</th><th>Họ và tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Email</th><th>Phone</th><th>Quyền</th><th></th></tr></thead>
           <tbody>
             {pageRows.map(u => (
               <EditableRow key={u.id} user={u} onUpdated={onReload} onDeleted={onReload} />

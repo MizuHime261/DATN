@@ -30,6 +30,7 @@ export default function AdminStructure(){
   const [searchQuery, setSearchQuery] = useState('')
   const [pageSize, setPageSize] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
+  const [filterLevel, setFilterLevel] = useState('')
 
   useEffect(()=>{ (async()=>{
     const [lev, gra, cla, tl, te] = await Promise.all([
@@ -53,8 +54,25 @@ export default function AdminStructure(){
     ])
   }
 
+  // Function to reload all data (used when classes are updated)
+  function reloadAll(){
+    Promise.all([
+      axios.get('/api/admin/levels'),
+      axios.get('/api/admin/grades'),
+      axios.get('/api/admin/classes'),
+      axios.get('/api/admin/teacher-levels').catch(()=>({ data:[] })),
+      axios.get('/api/admin/users', { params: { role:'TEACHER' } }).catch(()=>({ data:[] }))
+    ]).then(([lev, gra, cla, tl, te]) => {
+      setLevels(lev.data)
+      setGrades(gra.data)
+      setClasses(cla.data)
+      setTeacherLevels(tl.data||[])
+      setTeachers(te.data||[])
+    })
+  }
+
   // Reset paging/search when switching tab
-  useEffect(()=>{ setCurrentPage(1); setSearchQuery('') }, [activeTab])
+  useEffect(()=>{ setCurrentPage(1); setSearchQuery(''); setFilterLevel('') }, [activeTab])
 
   async function saveLevel(){
     // Frontend validation: không trùng mã hoặc tên cấp
@@ -139,6 +157,8 @@ export default function AdminStructure(){
     try {
       await axios.post('/api/admin/classes', { ...newClass, active: !!newClass.active });
       setMsg('Lưu lớp OK'); setMsgType('success'); setErrorsClass({})
+      // Reset form after successful save
+      setNewClass({ grade_id:'', name:'', homeroom_teacher_id:'', room_name:'', active:true })
     } catch {
       setMsg('Lưu lớp lỗi'); setMsgType('error')
     }
@@ -207,6 +227,7 @@ export default function AdminStructure(){
             </div>
             <div className="mt16"><input className={`input${errorsClass.name? ' input-error':''}`} placeholder="Tên lớp (vd: 1A1, 10A2)" value={newClass.name} onChange={e=>setNewClass(v=>({...v,name:e.target.value}))} />{errorsClass.name && <div className="input-help error">{errorsClass.name}</div>}</div>
             <HomeroomTeacherSelect
+              key={`homeroom-${newClass.grade_id}-${newClass.homeroom_teacher_id}`}
               levels={levels}
               grades={grades}
               classes={classes}
@@ -217,7 +238,7 @@ export default function AdminStructure(){
               onChange={id=>setNewClass(v=>({...v,homeroom_teacher_id:id}))}
             />
             <div className="mt16"><input className={`input${errorsClass.room_name? ' input-error':''}`} placeholder="Phòng học" value={newClass.room_name} onChange={e=>setNewClass(v=>({...v,room_name:e.target.value}))} />{errorsClass.room_name && <div className="input-help error">{errorsClass.room_name}</div>}</div>
-            <div className="mt16"><button className="btn" onClick={async()=>{ await saveClass(); reload('CLASSES') }}>Thêm lớp</button></div>
+            <div className="mt16"><button className="btn" onClick={async()=>{ await saveClass(); reloadAll() }}>Thêm lớp</button></div>
           </div>
         </div>
       </div>
@@ -237,6 +258,17 @@ export default function AdminStructure(){
               <div className="row" style={{justifyContent:'space-between', flexWrap:'wrap'}}>
                 <input className="input" style={{flex:1}} placeholder="Tìm kiếm" value={searchQuery} onChange={e=>{ setSearchQuery(e.target.value); setCurrentPage(1) }} />
                 <div style={{width:12}} />
+                {(activeTab === 'GRADES' || activeTab === 'CLASSES') && (
+                  <>
+                    <select className="input" style={{width:160}} value={filterLevel} onChange={e=>{ setFilterLevel(e.target.value); setCurrentPage(1) }}>
+                      <option value="">Lọc theo cấp học</option>
+                      {levels.map(level => (
+                        <option key={level.id} value={level.id}>{level.name}</option>
+                      ))}
+                    </select>
+                    <div style={{width:12}} />
+                  </>
+                )}
                 <select className="input" style={{width:140}} value={pageSize} onChange={e=>{ setPageSize(parseInt(e.target.value,10)); setCurrentPage(1) }}>
                   <option value={5}>5 / trang</option>
                   <option value={10}>10 / trang</option>
@@ -254,6 +286,8 @@ export default function AdminStructure(){
                 pageSize={pageSize}
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
+                filterLevel={filterLevel}
+                reloadAll={reloadAll}
               />
             </div>
           )}
@@ -398,7 +432,7 @@ function HomeroomTeacherSelect({ levels, grades, classes, teacherLevels, teacher
 }
 
 
-function StructureTable({ activeTab, levels, grades, classes, teacherLevels, teachers, searchQuery, pageSize, currentPage, setCurrentPage }){
+function StructureTable({ activeTab, levels, grades, classes, teacherLevels, teachers, searchQuery, pageSize, currentPage, setCurrentPage, filterLevel, reloadAll }){
   const q = (searchQuery||'').toLowerCase().trim()
   let rows = []
   if (activeTab==='LEVELS') rows = levels.map(l => ({
@@ -419,6 +453,8 @@ function StructureTable({ activeTab, levels, grades, classes, teacherLevels, tea
       id:c.id,
       grade_id:c.grade_id,
       grade_number,
+      level_id: g?.level_id || null,
+      level_name: lv?.name || 'Cấp ?',
       grade_label: `${lv? lv.name:'Cấp ?'} - Khối ${g? g.grade_number:''}`,
       name:c.name,
       homeroom_teacher_id:c.homeroom_teacher_id,
@@ -430,7 +466,10 @@ function StructureTable({ activeTab, levels, grades, classes, teacherLevels, tea
   if (activeTab==='TEACHERS') rows = (teacherLevels||[]).map(t => ({
     teacher_id:t.teacher_id, teacher_name:t.teacher_name, teacher_email:t.teacher_email, level_id:t.level_id, level_name:(levels.find(l=> String(l.id)===String(t.level_id))||{}).name, position:t.position||'', start_date:t.start_date||'', end_date:t.end_date||''
   }))
-  let filtered = q ? rows.filter(r => JSON.stringify(r).toLowerCase().includes(q)) : rows
+  // Apply level filter first
+  let levelFiltered = filterLevel ? rows.filter(r => String(r.level_id) === String(filterLevel)) : rows
+  // Then apply search filter
+  let filtered = q ? levelFiltered.filter(r => JSON.stringify(r).toLowerCase().includes(q)) : levelFiltered
   const total = filtered.length
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
   const page = Math.min(currentPage, totalPages)
@@ -448,7 +487,7 @@ function StructureTable({ activeTab, levels, grades, classes, teacherLevels, tea
           <thead><tr><th>ID</th><th>Cấp học</th><th>Khối</th><th></th></tr></thead>
         )}
         {activeTab==='CLASSES' && (
-          <thead><tr><th>ID</th><th>Khối</th><th>Tên lớp</th><th>GVCN</th><th>Phòng</th><th>Hoạt động</th><th></th></tr></thead>
+          <thead><tr><th>ID</th><th>Cấp học</th><th>Khối</th><th>Tên lớp</th><th>GVCN</th><th>Phòng</th><th>Hoạt động</th><th></th></tr></thead>
         )}
         {activeTab==='TEACHERS' && (
           <thead><tr><th>Teacher ID</th><th>Tên giáo viên</th><th>Email</th><th>Cấp học</th><th>Chức vụ</th><th>Bắt đầu</th><th>Kết thúc</th><th></th></tr></thead>
@@ -456,13 +495,13 @@ function StructureTable({ activeTab, levels, grades, classes, teacherLevels, tea
         <tbody>
           {pageRows.map((r)=> (
             activeTab==='LEVELS'? (
-              <EditableLevelRow key={`L${r.id}`} row={r} />
+              <EditableLevelRow key={`L${r.id}`} row={r} onUpdated={()=>reload('LEVELS')} />
             ) : activeTab==='GRADES'? (
-              <EditableGradeRow key={`G${r.id}`} row={r} />
+              <EditableGradeRow key={`G${r.id}`} row={r} levels={levels} onUpdated={()=>reload('GRADES')} />
             ) : activeTab==='CLASSES'? (
-              <EditableClassRow key={`C${r.id}`} row={r} levels={levels} grades={grades} classes={classes} teacherLevels={teacherLevels} teachers={teachers} />
+              <EditableClassRow key={`C${r.id}`} row={r} levels={levels} grades={grades} classes={classes} teacherLevels={teacherLevels} teachers={teachers} onUpdated={reloadAll} />
             ) : (
-              <EditableTeacherLevelRow key={`T${r.teacher_id}-${r.level_id}`} row={r} levels={levels} />
+              <EditableTeacherLevelRow key={`T${r.teacher_id}-${r.level_id}`} row={r} levels={levels} onUpdated={()=>reload('TEACHERS')} />
             )
           ))}
         </tbody>
@@ -478,7 +517,7 @@ function StructureTable({ activeTab, levels, grades, classes, teacherLevels, tea
   )
 }
 
-function EditableLevelRow({ row }){
+function EditableLevelRow({ row, onUpdated }){
   const [editing, setEditing] = useState(false)
   const [code, setCode] = useState(row.code||'')
   const [name, setName] = useState(row.name||'')
@@ -488,10 +527,12 @@ function EditableLevelRow({ row }){
     if (!confirm('Xác nhận: chỉnh sửa thông tin')) return
     await axios.put(`/api/admin/levels/${row.id}`, { code, name, sort_order: Number(sortOrder||0) })
     setEditing(false)
+    onUpdated && onUpdated()
   }
   async function remove(){
     if (!confirm('Xác nhận xóa cấp học này?')) return
     await axios.delete(`/api/admin/levels/${row.id}`)
+    onUpdated && onUpdated()
   }
   if (!editing) return (
     <tr><td>{row.id}</td><td>{row.code}</td><td>{row.name}</td><td>{row.sort_order}</td><td><button className="icon-btn" onClick={()=>setEditing(true)}>✏️</button><button className="icon-btn" style={{marginLeft:8}} onClick={remove}>🗑️</button></td></tr>
@@ -501,30 +542,92 @@ function EditableLevelRow({ row }){
   )
 }
 
-function EditableGradeRow({ row }){
+function EditableGradeRow({ row, levels, onUpdated }){
   const [editing, setEditing] = useState(false)
   const [levelId, setLevelId] = useState(row.level_id||'')
   const [gradeNumber, setGradeNumber] = useState(row.grade_number||'')
+  const [loading, setLoading] = useState(false)
+  
   async function save(){
-    if (!levelId) return alert('level_id bắt buộc')
-    if (!gradeNumber) return alert('grade_number bắt buộc')
+    if (!levelId) return alert('Chọn cấp học')
+    if (!gradeNumber) return alert('Nhập số khối')
     if (!confirm('Xác nhận: chỉnh sửa thông tin')) return
-    await axios.put(`/api/admin/grades/${row.id}`, { level_id: levelId, grade_number: Number(gradeNumber||0) })
-    setEditing(false)
+    
+    setLoading(true)
+    try {
+      await axios.put(`/api/admin/grades/${row.id}`, { 
+        level_id: Number(levelId), 
+        grade_number: Number(gradeNumber) 
+      })
+      setEditing(false)
+      onUpdated && onUpdated()
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Không thể cập nhật khối')
+    } finally {
+      setLoading(false)
+    }
   }
+  
   async function remove(){
     if (!confirm('Xác nhận xóa khối này?')) return
-    await axios.delete(`/api/admin/grades/${row.id}`)
+    setLoading(true)
+    try {
+      await axios.delete(`/api/admin/grades/${row.id}`)
+      onUpdated && onUpdated()
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Không thể xóa khối')
+    } finally {
+      setLoading(false)
+    }
   }
+  
   if (!editing) return (
-    <tr><td>{row.id}</td><td>{row.level_name || row.level_id}</td><td>{`Khối ${row.grade_number}`}</td><td><button className="icon-btn" onClick={()=>setEditing(true)}>✏️</button><button className="icon-btn" style={{marginLeft:8}} onClick={remove}>🗑️</button></td></tr>
+    <tr>
+      <td>{row.id}</td>
+      <td>{row.level_name || row.level_id}</td>
+      <td>{`Khối ${row.grade_number}`}</td>
+      <td>
+        <button className="icon-btn" onClick={()=>setEditing(true)} title="Chỉnh sửa">✏️</button>
+        <button className="icon-btn" onClick={remove} title="Xóa" style={{marginLeft:8}} disabled={loading}>🗑️</button>
+      </td>
+    </tr>
   )
+  
   return (
-    <tr><td>{row.id}</td><td><input className="input" value={levelId} onChange={e=>setLevelId(e.target.value)} /></td><td><input className="input" value={gradeNumber} onChange={e=>setGradeNumber(e.target.value)} /></td><td><button className="btn" onClick={save}>Lưu</button><button className="btn secondary" style={{marginLeft:8}} onClick={()=>setEditing(false)}>Hủy</button></td></tr>
+    <tr>
+      <td>{row.id}</td>
+      <td>
+        <select className="input" value={levelId} onChange={e=>setLevelId(e.target.value)}>
+          <option value="">-- Chọn cấp học --</option>
+          {levels.map(level => (
+            <option key={level.id} value={level.id}>{level.name}</option>
+          ))}
+        </select>
+      </td>
+      <td>
+        <input 
+          className="input" 
+          type="number" 
+          min="1" 
+          max="12" 
+          value={gradeNumber} 
+          onChange={e=>setGradeNumber(e.target.value)} 
+          placeholder="Số khối"
+        />
+      </td>
+      <td>
+        <button className="btn" onClick={save} disabled={loading}>
+          {loading ? 'Đang lưu...' : 'Lưu'}
+        </button>
+        <button className="btn secondary" onClick={()=>setEditing(false)} style={{marginLeft:8}}>
+          Hủy
+        </button>
+      </td>
+    </tr>
   )
 }
 
-function EditableClassRow({ row, levels, grades, classes, teacherLevels, teachers }){
+function EditableClassRow({ row, levels, grades, classes, teacherLevels, teachers, onUpdated }){
   const [editing, setEditing] = useState(false)
   const [gradeId, setGradeId] = useState(row.grade_id||'')
   const [name, setName] = useState(row.name||'')
@@ -562,22 +665,45 @@ function EditableClassRow({ row, levels, grades, classes, teacherLevels, teacher
     if (!confirm('Xác nhận: chỉnh sửa thông tin')) return
     await axios.put(`/api/admin/classes/${row.id}`, { grade_id: gradeId, name, homeroom_teacher_id: homeroom||null, room_name: room, active })
     setEditing(false)
+    onUpdated && onUpdated()
   }
   async function remove(){
     if (!confirm('Xác nhận xóa lớp này?')) return
     await axios.delete(`/api/admin/classes/${row.id}`)
+    onUpdated && onUpdated()
   }
   if (!editing) return (
-    <tr><td>{row.id}</td><td>{row.grade_label}</td><td>{row.name}</td><td>{row.homeroom_name || ''}</td><td>{row.room_name}</td><td>{row.active? '✔' : ''}</td><td><button className="icon-btn" onClick={()=>setEditing(true)}>✏️</button><button className="icon-btn" style={{marginLeft:8}} onClick={remove}>🗑️</button></td></tr>
+    <tr>
+      <td>{row.id}</td>
+      <td>{row.level_name || 'Cấp ?'}</td>
+      <td>{`Khối ${row.grade_number}`}</td>
+      <td>{row.name}</td>
+      <td>{row.homeroom_name || ''}</td>
+      <td>{row.room_name}</td>
+      <td>{row.active? '✔' : ''}</td>
+      <td>
+        <button className="icon-btn" onClick={()=>setEditing(true)} title="Chỉnh sửa">✏️</button>
+        <button className="icon-btn" style={{marginLeft:8}} onClick={remove} title="Xóa">🗑️</button>
+      </td>
+    </tr>
   )
   return (
     <tr>
       <td>{row.id}</td>
       <td>
+        <span style={{color: '#666', fontSize: '14px'}}>
+          {(() => {
+            const selectedGrade = grades.find(g => String(g.id) === String(gradeId))
+            const selectedLevel = selectedGrade ? levels.find(l => String(l.id) === String(selectedGrade.level_id)) : null
+            return selectedLevel ? selectedLevel.name : 'Chọn khối trước'
+          })()}
+        </span>
+      </td>
+      <td>
         <select className="input" value={gradeId} onChange={e=>{ setGradeId(e.target.value); setHomeroom('') }}>
           {grades.map(g=>{
             const lv = levels.find(l=> String(l.id)===String(g.level_id))
-            return <option key={g.id} value={g.id}>{`${lv? lv.name:'Cấp ?'} - Khối ${g.grade_number}`}</option>
+            return <option key={g.id} value={g.id}>{`Khối ${g.grade_number}`}</option>
           })}
         </select>
       </td>
@@ -601,7 +727,7 @@ function EditableClassRow({ row, levels, grades, classes, teacherLevels, teacher
   )
 }
 
-function EditableTeacherLevelRow({ row, levels }){
+function EditableTeacherLevelRow({ row, levels, onUpdated }){
   const [editing, setEditing] = useState(false)
   const [levelId, setLevelId] = useState(row.level_id)
   const [position, setPosition] = useState(row.position||'')
@@ -611,10 +737,12 @@ function EditableTeacherLevelRow({ row, levels }){
     if (!confirm('Xác nhận: chỉnh sửa thông tin')) return
     await axios.put('/api/admin/teacher-levels', { teacher_id: row.teacher_id, level_id: levelId, position, start_date: start||null, end_date: end||null })
     setEditing(false)
+    onUpdated && onUpdated()
   }
   async function remove(){
     if (!confirm('Xác nhận xóa liên kết giáo viên-cấp này?')) return
     await axios.delete('/api/admin/teacher-levels', { params:{ teacher_id: row.teacher_id, level_id: row.level_id } })
+    onUpdated && onUpdated()
   }
   if (!editing) return (
     <tr>

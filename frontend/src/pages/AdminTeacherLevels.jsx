@@ -231,6 +231,15 @@ function Row({ r, levels, onChanged }){
   const [position, setPosition] = useState(r.position||'')
   const [start, setStart] = useState(r.start_date? String(r.start_date).slice(0,10): '')
   const [end, setEnd] = useState(r.end_date? String(r.end_date).slice(0,10): '')
+  
+  function formatDate(dateString) {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
+  }
   async function save(){
     await axios.put('/api/admin/teacher-levels', { teacher_id:r.teacher_id, level_id: levelId, position, start_date:start||null, end_date:end||null })
     setEditing(false); onChanged && onChanged()
