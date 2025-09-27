@@ -1,0 +1,106 @@
+TÀI LIỆU MÔ TẢ BẢNG DỮ LIỆU SỬ DỤNG TRONG CÁC CHỨC NĂNG
+
+1. Trang Quản lý người dùng (AdminUsers)
+   - Bảng `users`
+     • Lưu thông tin tài khoản chung: id, email, username, role, phone, gender, birthdate, password hash, timestamps.
+     • Trang này giới hạn tạo mới các role: ADMIN, STAFF, TEACHER.
+   - Bảng phụ trợ liên quan gián tiếp
+     • `teacher_levels`: dùng khi lọc giáo viên theo cấp (nếu tải ở phần khác của hệ thống).
+
+2. Trang Quản lý học sinh (AdminStudents)
+   - Bảng `users`
+     • Chứa bản ghi cho cả học sinh và phụ huynh.
+   - Bảng `student_info`
+     • Lưu trạng thái học sinh (status), ngày nhập học, các thông tin bổ sung khác.
+   - Bảng `parent_student`
+     • Quan hệ nhiều-nhiều giữa phụ huynh và học sinh, gồm parent_id, student_id, relationship.
+   - Bảng `class_enrollments`
+     • Liên kết học sinh với lớp hiện tại, gồm student_user_id, class_id, active, enrollment_date.
+   - Bảng `classes`
+     • Thông tin lớp học, homeroom_teacher_id, room_name.
+   - Bảng `grades`
+     • Thông tin khối (liên kết tới levels, chứa grade_number, level_id).
+   - Bảng `levels`
+     • Thông tin cấp học (PRIMARY, SECONDARY,...).
+
+3. Trang Quản lý cơ cấu (AdminStructure)
+   - Bảng `levels`
+     • Danh sách cấp học, gồm id, code, name, sort_order.
+   - Bảng `grades`
+     • Danh sách khối, liên kết level_id.
+   - Bảng `classes`
+     • Lớp học, chứa grade_id, name, room_name, homeroom_teacher_id, active.
+   - Bảng `users`
+     • Dùng để lấy danh sách giáo viên (role = TEACHER).
+   - Bảng `teacher_levels`
+     • Phân quyền giáo viên theo cấp, xác định giáo viên nào được gán làm GVCN cho lớp thuộc cấp tương ứng.
+
+4. Trang Quản lý giáo viên theo cấp (AdminTeacherLevels)
+   - Bảng `teacher_levels`
+     • Liên kết teacher_id với level_id, kèm position, start_date, end_date.
+   - Bảng `users`
+     • Lưu thông tin giáo viên.
+   - Bảng `levels`
+     • Cấp học gắn với giáo viên.
+
+5. Trang Thời khóa biểu quản trị (AdminTimetable)
+   - Bảng `timetables`
+     • Nếu đã tồn tại trong hệ thống: lưu cấu hình TKb (class_id, subject_id, teacher_id, day_of_week, period,...).
+   - Bảng `subjects`
+     • Danh sách môn học.
+   - Bảng `classes`, `users`
+     • Sử dụng khi hiển thị lớp học và giáo viên.
+
+6. Trang Nhập điểm giáo viên (TeacherGrades)
+   - Bảng `grade_components`
+     • Cấu hình thành phần điểm.
+   - Bảng `student_grades`
+     • Lưu điểm của học sinh cho từng thành phần.
+   - Bảng `class_enrollments`, `users`
+     • Xác định danh sách học sinh thuộc lớp được dạy.
+
+7. Trang Hạnh kiểm giáo viên (TeacherConduct)
+   - Bảng `conduct_records`
+     • Lưu đánh giá hạnh kiểm theo kỳ, theo học sinh.
+   - Bảng `class_enrollments`, `users`
+     • Lấy danh sách học sinh.
+
+8. Trang Báo cáo điểm giáo viên (TeacherReport)
+   - Bảng `student_grades`, `grade_components`
+     • Kết xuất điểm theo từng thành phần.
+   - Bảng `subjects`, `classes`, `users`
+     • Liên kết thông tin lớp, môn, giáo viên.
+
+9. Trang Thời khóa biểu học sinh/phụ huynh (StudentTimetable, ParentTimetable)
+   - Bảng `timetables`
+     • Lấy lịch học theo lớp.
+   - Bảng `class_enrollments`, `parent_student`
+     • Xác định lớp của học sinh và quan hệ phụ huynh.
+   - Bảng `users`
+     • Lấy thông tin giáo viên phụ trách.
+
+10. Trang Thanh toán học phí nhân viên (StaffInvoices) & Phụ huynh (ParentInvoices)
+    - Bảng `invoices`
+      • Thông tin hóa đơn học phí.
+    - Bảng `invoice_items`
+      • Chi tiết khoản thu.
+    - Bảng `users`
+      • Thông tin học sinh, phụ huynh, nhân viên.
+    - Bảng `payments`
+      • Lịch sử thanh toán (nếu đã triển khai).
+
+11. Trang Bán trú nhân viên (StaffMeals) & Đăng ký bán trú phụ huynh (ParentBoarding)
+    - Bảng `meal_plans`
+      • Danh sách suất ăn/bán trú theo ngày.
+    - Bảng `boarding_registrations`
+      • Đăng ký bán trú của học sinh.
+    - Bảng `users`, `class_enrollments`
+      • Gắn học sinh với lớp và thông tin hiển thị.
+
+12. API và xử lý backend chung
+    - `users`
+      • Trung tâm cho toàn bộ phân quyền.
+    - `auth_tokens` hoặc session (nếu có)
+      • Lưu token JWT phát hành.
+    - `logs` (nếu tồn tại)
+      • Ghi nhận hoạt động của admin/nhân viên.
