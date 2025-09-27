@@ -24,9 +24,25 @@ export default function AdminTeacherLevels(){
   }
   function toTextFromIso(iso){
     if (!iso) return ''
-    const [y,m,d] = String(iso).split('-')
-    if (!y||!m||!d) return ''
-    return `${d}/${m}/${y}`
+    try {
+      const date = new Date(iso)
+      if (Number.isNaN(date.getTime())) return ''
+      const day = String(date.getDate()).padStart(2, '0')
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const year = date.getFullYear()
+      return `${day}/${month}/${year}`
+    } catch (_err) {
+      return ''
+    }
+  }
+
+  function formatDate(dateString) {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
   }
 
   async function load(){
@@ -231,8 +247,8 @@ function Row({ r, levels, onChanged }){
       <td>{r.teacher_email}</td>
       <td>{(levels.find(l=> String(l.id)===String(r.level_id))||{}).name || r.level_id}</td>
       <td>{r.position||''}</td>
-      <td>{r.start_date? new Date(r.start_date).toLocaleDateString('vi-VN'): ''}</td>
-      <td>{r.end_date? new Date(r.end_date).toLocaleDateString('vi-VN'): ''}</td>
+      <td>{formatDate(r.start_date)}</td>
+      <td>{formatDate(r.end_date)}</td>
       <td>
         <button className="icon-btn" onClick={()=>setEditing(true)}>✏️</button>
         <button className="icon-btn" onClick={remove} style={{marginLeft:8}}>🗑️</button>

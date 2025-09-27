@@ -11,7 +11,10 @@ function formatDate(date){
   try{
     const d = new Date(date)
     if (Number.isNaN(d.getTime())) return ''
-    return d.toLocaleDateString('vi-VN')
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year = d.getFullYear()
+    return `${day}/${month}/${year}`
   }catch(_err){
     return ''
   }

@@ -27,6 +27,7 @@ export default function AdminTimetable(){
   const [levels, setLevels] = useState([])
   const [grades, setGrades] = useState([])
   
+  const [selectedLevel, setSelectedLevel] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
   const [selectedClass, setSelectedClass] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('')
@@ -77,19 +78,35 @@ export default function AdminTimetable(){
     }
   })() }, [selectedTerm, selectedClass])
 
+  // Filter terms theo level được chọn - tạm thời hiển thị tất cả terms
+  const filteredTerms = selectedLevel ? terms : []
+
+  // Debug log để kiểm tra filtering
+  console.log('Selected level:', selectedLevel)
+  console.log('All terms:', terms)
+  console.log('Filtered terms:', filteredTerms)
+  console.log('Level grades:', grades.filter(g => String(g.level_id) === String(selectedLevel)))
+  console.log('Level classes:', classes.filter(c => {
+    const levelGrades = grades.filter(g => String(g.level_id) === String(selectedLevel))
+    const levelGradeIds = levelGrades.map(g => g.id)
+    return levelGradeIds.includes(c.grade_id)
+  }))
+
   // Filter subjects theo grade của class được chọn
   const filteredSubjects = subjects.filter(subject => {
     if (!selectedClass) return false
     const selectedClassObj = classes.find(c => String(c.id) === String(selectedClass))
     if (!selectedClassObj) return false
     
-    // Lấy grade_id từ class, sau đó lấy level_id từ grade
+    // Lấy grade_id từ class
     const grade = grades.find(g => String(g.id) === String(selectedClassObj.grade_id))
     if (!grade) return false
     
-    // Chỉ hiển thị subjects thuộc cùng level với grade của class
-    return String(subject.level_id) === String(grade.level_id)
+    // Chỉ hiển thị subjects được gán cụ thể cho grade này
+    // Subject phải có grade_id trùng với grade của class được chọn
+    return String(subject.grade_id) === String(grade.id)
   })
+
 
   // State để lưu teacher-subjects assignments
   const [teacherSubjects, setTeacherSubjects] = useState([])
@@ -301,11 +318,23 @@ export default function AdminTimetable(){
           <div className="row mt16">
             <select 
               className="input" 
+              value={selectedLevel} 
+              onChange={e=>{ setSelectedLevel(e.target.value); setSelectedTerm(''); setSelectedClass('') }}
+            >
+              <option value="">-- Chọn cấp học --</option>
+              {levels.map(l => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+            
+            <select 
+              className="input" 
               value={selectedTerm} 
               onChange={e=>{ setSelectedTerm(e.target.value); setSelectedClass('') }}
+              disabled={!selectedLevel}
             >
               <option value="">-- Chọn học kỳ --</option>
-              {terms.map(t => (
+              {filteredTerms.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
@@ -328,6 +357,7 @@ export default function AdminTimetable(){
               })}
             </select>
             
+            
             <select 
               className="input" 
               value={selectedSubject} 
@@ -335,9 +365,13 @@ export default function AdminTimetable(){
               disabled={!selectedClass}
             >
               <option value="">-- Chọn môn học --</option>
-              {filteredSubjects.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
+              {filteredSubjects.length === 0 ? (
+                <option value="" disabled>Chưa có môn học nào được gán cho khối này</option>
+              ) : (
+                filteredSubjects.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))
+              )}
             </select>
             
             <select 
@@ -405,11 +439,23 @@ export default function AdminTimetable(){
           <div className="row mt16">
             <select 
               className="input" 
+              value={selectedLevel} 
+              onChange={e=>{ setSelectedLevel(e.target.value); setSelectedTerm(''); setSelectedClass('') }}
+            >
+              <option value="">-- Chọn cấp học --</option>
+              {levels.map(l => (
+                <option key={l.id} value={l.id}>{l.name}</option>
+              ))}
+            </select>
+            
+            <select 
+              className="input" 
               value={selectedTerm} 
               onChange={e=>{ setSelectedTerm(e.target.value); setSelectedClass('') }}
+              disabled={!selectedLevel}
             >
               <option value="">-- Chọn học kỳ --</option>
-              {terms.map(t => (
+              {filteredTerms.map(t => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>

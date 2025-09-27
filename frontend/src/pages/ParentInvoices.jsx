@@ -87,10 +87,11 @@ export default function ParentInvoices(){
       {loading? 'Đang tải...' : (
         <div className="mt16">
           {rows.length===0? 'Không có dữ liệu' : (
-            <table>
-              <thead>
-                <tr><th>STT</th><th>Nội dung</th><th>Số tiền</th><th>Ghi chú</th><th></th></tr>
-              </thead>
+            <div className="table-responsive">
+              <table>
+                <thead>
+                  <tr><th>STT</th><th>Nội dung</th><th>Số tiền</th><th>Ghi chú</th><th></th></tr>
+                </thead>
               <tbody>
                 {rows.map((r,idx)=> {
                   const checked = selectedIds.has(String(r.id))
@@ -110,7 +111,8 @@ export default function ParentInvoices(){
                   )
                 })}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -123,14 +125,16 @@ export default function ParentInvoices(){
       {selected && (
         <div className="card mt16">
           <h3 style={{marginTop:0}}>Chi tiết hóa đơn {selected.id}</h3>
-          <table>
-            <thead><tr><th>Loại</th><th>Mô tả</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
-            <tbody>
-              {items.map(it => (
-                <tr key={it.id}><td>{it.item_type}</td><td>{it.description}</td><td>{it.quantity}</td><td>{it.unit_price_cents}</td><td>{it.total_cents}</td></tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table>
+              <thead><tr><th>Loại</th><th>Mô tả</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>
+              <tbody>
+                {items.map(it => (
+                  <tr key={it.id}><td>{it.item_type}</td><td>{it.description}</td><td>{it.quantity}</td><td>{it.unit_price_cents}</td><td>{it.total_cents}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="row mt16">
             <input className="input" placeholder="Số tiền muốn thanh toán (đ)" value={amount} onChange={e=>setAmount(e.target.value)} />
             <button className="btn" onClick={pay} disabled={paying}>Thanh toán</button>

@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios'
 
+function formatDate(dateString) {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
 export default function AdminStructure(){
   const [levels, setLevels] = useState([])
   const [grades, setGrades] = useState([])
@@ -614,8 +623,8 @@ function EditableTeacherLevelRow({ row, levels }){
       <td>{row.teacher_email}</td>
       <td>{row.level_name || row.level_id}</td>
       <td>{row.position||''}</td>
-      <td>{row.start_date? new Date(row.start_date).toLocaleDateString('vi-VN'): ''}</td>
-      <td>{row.end_date? new Date(row.end_date).toLocaleDateString('vi-VN'): ''}</td>
+      <td>{formatDate(row.start_date)}</td>
+      <td>{formatDate(row.end_date)}</td>
       <td>
         <button className="icon-btn" onClick={()=>setEditing(true)}>✏️</button>
         <button className="icon-btn" onClick={remove} style={{marginLeft:8}}>🗑️</button>

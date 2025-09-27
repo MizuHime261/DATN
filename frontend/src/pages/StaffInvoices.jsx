@@ -20,9 +20,16 @@ export default function StaffInvoices(){
   }
   function toTextFromIso(iso){
     if (!iso) return ''
-    const [y,m,d] = String(iso).split('-')
-    if (!y||!m||!d) return ''
-    return `${d}/${m}/${y}`
+    try {
+      const date = new Date(iso)
+      if (Number.isNaN(date.getTime())) return ''
+      const day = String(date.getDate()).padStart(2, '0')
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const year = date.getFullYear()
+      return `${day}/${month}/${year}`
+    } catch (_err) {
+      return ''
+    }
   }
 
   async function load(){

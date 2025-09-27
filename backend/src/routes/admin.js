@@ -6,7 +6,7 @@ export const adminRouter = express.Router();
 
 adminRouter.use(requireAuth, requireRoles('ADMIN'));
 
-const USER_MANAGEMENT_ROLES = ['ADMIN', 'STAFF', 'TEACHER'];
+const USER_MANAGEMENT_ROLES = ['ADMIN', 'STAFF', 'TEACHER', 'STUDENT', 'PARENT'];
 const EMAIL_REGEX = /^([^\s@]+)@([^\s@]+)\.[^\s@]{2,}$/;
 
 const RELATIONSHIP_VALUES = {
@@ -241,13 +241,23 @@ async function loadStudentById(conn, studentId) {
 
 adminRouter.post('/users', async (req, res) => {
   const { email, username, role, phone, gender, birthdate, password } = req.body;
-  if (!email || !username || !birthdate || !role) {
+  
+  // Kiểm tra các field bắt buộc (email không bắt buộc cho học sinh)
+  if (!username || !birthdate || !role) {
     return res.status(400).json({ error: 'Missing fields' });
   }
-  if (!USER_MANAGEMENT_ROLES.includes(role)) {
-    return res.status(400).json({ error: 'Role STUDENT/PARENT tạo trong trang quản lý học sinh' });
+  
+  // Email bắt buộc cho tất cả role trừ STUDENT và PARENT
+  if (role !== 'STUDENT' && role !== 'PARENT' && !email) {
+    return res.status(400).json({ error: 'Email is required for this role' });
   }
-  if (!EMAIL_REGEX.test(String(email))) {
+  
+  if (!USER_MANAGEMENT_ROLES.includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  
+  // Kiểm tra email hợp lệ chỉ khi có email và không phải học sinh/phụ huynh
+  if (email && role !== 'STUDENT' && role !== 'PARENT' && !EMAIL_REGEX.test(String(email))) {
     return res.status(400).json({ error: 'Email không hợp lệ' });
   }
   const phoneText = phone ? String(phone).trim() : '';
@@ -264,9 +274,12 @@ adminRouter.post('/users', async (req, res) => {
   const normalizedGender = normalizeGenderInput(gender);
 
   try {
-    const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(email)=LOWER(?) LIMIT 1', [email]);
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Email đã tồn tại' });
+    // Chỉ kiểm tra email trùng lặp khi có email
+    if (email) {
+      const [existing] = await pool.query('SELECT id FROM users WHERE LOWER(email)=LOWER(?) LIMIT 1', [email]);
+      if (existing.length > 0) {
+        return res.status(409).json({ error: 'Email đã tồn tại' });
+      }
     }
     const [result] = await pool.query(
       'INSERT INTO users (email, password, username, role, phone, gender, birthdate) VALUES (?, SHA2(?,256), ?, ?, ?, ?, ?)',
@@ -274,7 +287,7 @@ adminRouter.post('/users', async (req, res) => {
     );
     res.status(201).json({ id: result.insertId });
   } catch (err) {
-    if (err && (err.code === 'ER_DUP_ENTRY' || String(err.message || '').includes('Duplicate'))) {
+    if (email && err && (err.code === 'ER_DUP_ENTRY' || String(err.message || '').includes('Duplicate'))) {
       return res.status(409).json({ error: 'Email đã tồn tại' });
     }
     res.status(400).json({ error: 'Create user failed' });

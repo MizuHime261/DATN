@@ -18,14 +18,16 @@ export default function TeacherStudents(){
       </div>
       <div className="mt16">
         {rows.length===0? 'Không có dữ liệu' : (
-          <table>
-            <thead><tr><th>Tên</th><th>Lớp</th><th>Ngày sinh</th><th>Giới tính</th><th>ĐT HS</th><th>ĐT PH</th></tr></thead>
-            <tbody>
-              {rows.map(s => (
-                <tr key={s.id}><td>{s.username}</td><td>{s.class_name}</td><td>{s.birthdate || ''}</td><td>{s.gender || ''}</td><td>{s.phone || ''}</td><td>{s.parent_phone || ''}</td></tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-responsive">
+            <table>
+              <thead><tr><th>Tên</th><th>Lớp</th><th>Ngày sinh</th><th>Giới tính</th><th>ĐT HS</th><th>ĐT PH</th></tr></thead>
+              <tbody>
+                {rows.map(s => (
+                  <tr key={s.id}><td>{s.username}</td><td>{s.class_name}</td><td>{s.birthdate || ''}</td><td>{s.gender || ''}</td><td>{s.phone || ''}</td><td>{s.parent_phone || ''}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

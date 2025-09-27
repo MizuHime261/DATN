@@ -4,6 +4,12 @@ html,body,#root{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif}
 a{color:inherit;text-decoration:none}
 
+/* Mobile-first responsive breakpoints */
+@media (max-width: 480px) { /* Mobile phones */ }
+@media (min-width: 481px) and (max-width: 768px) { /* Tablets */ }
+@media (min-width: 769px) and (max-width: 1024px) { /* Small laptops */ }
+@media (min-width: 1025px) { /* Desktop */ }
+
 .login-container{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc}
 .login-page{width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .login-logo-text{font-size:48px;font-weight:800;color:#0d47a1;margin-bottom:40px;letter-spacing:2px}
@@ -14,18 +20,28 @@ a{color:inherit;text-decoration:none}
 .login-forgot:hover{color:#0b3a86}
 
 .app-shell{display:flex;min-height:100%}
-.sidebar{width:260px;background:var(--blue);color:var(--white);padding:20px;flex-shrink:0}
+.sidebar{width:260px;background:var(--blue);color:var(--white);padding:20px;flex-shrink:0;transition:transform 0.3s ease}
+.sidebar.mobile-hidden{transform:translateX(-100%)}
 .brand{font-weight:800;font-size:20px;letter-spacing:.5px}
 .nav{margin-top:24px;display:grid;gap:8px}
-.nav a{padding:10px 12px;border-radius:8px;background:transparent;color:#e3f2fd}
+.nav a{padding:10px 12px;border-radius:8px;background:transparent;color:#e3f2fd;transition:background 0.2s ease}
 .nav a.active,.nav a:hover{background:rgba(255,255,255,.12)}
 
-.content{flex:1;padding:24px;background:linear-gradient(180deg,#f7faff, #eef5ff)}
+.content{flex:1;padding:24px;background:linear-gradient(180deg,#f7faff, #eef5ff);transition:margin-left 0.3s ease}
+
+/* Mobile menu toggle */
+.mobile-menu-toggle{display:none;background:var(--blue);color:var(--white);border:none;padding:12px 16px;border-radius:8px;cursor:pointer;margin-bottom:16px;font-size:16px;font-weight:600;transition:background 0.2s ease;touch-action:manipulation}
+.mobile-menu-toggle:hover{background:var(--blue-600)}
+.mobile-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:998}
+.mobile-overlay.active{display:block}
 .card{background:var(--white);border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(16,24,40,.06)}
 .card h3{margin:0 0 8px 0;color:var(--blue)}
-.btn{background:var(--blue);color:var(--white);border:0;padding:10px 14px;border-radius:8px;cursor:pointer}
+.btn{background:var(--blue);color:var(--white);border:0;padding:10px 14px;border-radius:8px;cursor:pointer;transition:background 0.2s ease;touch-action:manipulation}
+.btn:hover{background:var(--blue-600)}
 .btn.secondary{background:var(--blue-600)}
-.input{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px}
+.btn.secondary:hover{background:#0a2f5c}
+.input{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;transition:border-color 0.2s ease}
+.input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(13,71,161,0.1)}
 .row{display:flex;gap:12px;align-items:center}
 .mt16{margin-top:16px}.mt24{margin-top:24px}.mt32{margin-top:32px}
 table{width:100%;border-collapse:separate;border-spacing:0 8px}
@@ -113,6 +129,109 @@ tbody tr{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(16,24,40,.0
 .legend-item{display:flex;align-items:center;gap:8px}
 .legend-bullet{width:12px;height:12px;border-radius:4px;background:#0d47a1}
 .legend-bullet.orange{background:#f97316}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  /* Login page mobile */
+  .login-card{width:90%;max-width:360px;padding:20px}
+  .login-logo-text{font-size:36px;margin-bottom:30px}
+  
+  /* App shell mobile */
+  .app-shell{flex-direction:column}
+  .sidebar{width:100%;position:fixed;top:0;left:0;height:100vh;z-index:999;transform:translateX(-100%)}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .content{padding:16px;margin-left:0}
+  .mobile-menu-toggle{display:block}
+  
+  /* Cards mobile */
+  .card{padding:16px;margin-bottom:16px}
+  
+  /* Forms mobile */
+  .form-grid{grid-template-columns:1fr}
+  .user-form-grid{grid-template-columns:1fr}
+  .link-grid{grid-template-columns:1fr}
+  
+  /* Tables mobile */
+  .table-responsive{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:600px}
+  th,td{padding:8px 6px;font-size:14px}
+  
+  /* Buttons mobile */
+  .btn{padding:12px 16px;min-height:44px;font-size:16px;touch-action:manipulation}
+  .user-actions{flex-direction:column;gap:8px}
+  .user-actions .btn{width:100%}
+  
+  /* Filter bar mobile */
+  .filter-bar{flex-direction:column;gap:8px}
+  .filter-bar__search,.filter-bar__select{flex:none;width:100%}
+  
+  /* Timetable mobile */
+  .timetable-wrapper{grid-template-columns:1fr;gap:16px}
+  .timetable-grid{grid-template-columns:60px repeat(5, minmax(0,1fr))}
+  .timetable-header{grid-template-columns:60px repeat(5, minmax(0,1fr))}
+  .timetable-row{grid-template-columns:60px repeat(5,minmax(0,1fr))}
+  .timetable-slot{padding:8px 6px}
+  .timetable-event{font-size:12px;padding:6px 8px}
+  
+  /* Admin layouts mobile */
+  .admin-teacher-levels{grid-template-columns:1fr;gap:16px}
+  .form-card{position:static}
+  
+  /* User toolbar mobile */
+  .user-toolbar{flex-direction:column;gap:8px}
+  .user-toolbar__item{flex:none;width:100%}
+  
+  /* Link actions mobile */
+  .link-actions{flex-direction:column;gap:8px}
+  .link-actions .btn{width:100%}
+  
+  /* Row layouts mobile */
+  .row{flex-direction:column;gap:8px;align-items:stretch}
+  .row .btn{width:100%}
+  .row .input{width:100%}
+  
+  /* Icon buttons mobile */
+  .icon-btn{padding:8px 10px;min-height:44px;font-size:16px}
+  
+  /* Pagination mobile */
+  .table-footer{flex-direction:column;gap:12px;align-items:center}
+  .table-footer__pager{justify-content:center}
+}
+
+@media (max-width: 480px) {
+  /* Extra small mobile */
+  .login-logo-text{font-size:28px}
+  .login-card{padding:16px}
+  .content{padding:12px}
+  .card{padding:12px}
+  .btn{padding:10px 12px;min-height:40px}
+  .input{padding:12px}
+  
+  /* Tables extra small */
+  table{min-width:500px}
+  th,td{padding:6px 4px;font-size:13px}
+  
+  /* Timetable extra small */
+  .timetable-grid{grid-template-columns:50px repeat(5, minmax(0,1fr))}
+  .timetable-header{grid-template-columns:50px repeat(5, minmax(0,1fr))}
+  .timetable-row{grid-template-columns:50px repeat(5,minmax(0,1fr))}
+  .timetable-slot{padding:6px 4px}
+  .timetable-event{font-size:11px;padding:4px 6px}
+  
+  /* Navigation mobile */
+  .nav a{padding:12px 16px;font-size:16px}
+  
+  /* Brand mobile */
+  .brand{font-size:18px}
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  /* Tablet styles */
+  .sidebar{width:240px}
+  .content{padding:20px}
+  .card{padding:18px}
+  .form-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+}
 
 @media (max-width:1200px){
   .timetable-wrapper{grid-template-columns:1fr}

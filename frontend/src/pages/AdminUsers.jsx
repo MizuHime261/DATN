@@ -18,6 +18,20 @@ function renderGender(value) {
 const roleLabel = { ADMIN:'Quản trị', STAFF:'Nhân viên', TEACHER:'Giáo viên', STUDENT:'Học sinh', PARENT:'Phụ huynh' }
 const allowedRoles = Object.keys(roleLabel)
 
+function formatIsoToDdMmYyyy(iso){
+  if (!iso) return ''
+  try {
+    const date = new Date(iso)
+    if (Number.isNaN(date.getTime())) return ''
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    return `${day}/${month}/${year}`
+  } catch (_err) {
+    return ''
+  }
+}
+
 export default function AdminUsers(){
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
@@ -39,14 +53,6 @@ export default function AdminUsers(){
   const [sortDir, setSortDir] = useState('asc')
   const [filterGender, setFilterGender] = useState('')
   const hiddenDateRef = useRef(null)
-
-  function formatIsoToDdMmYyyy(iso){
-    if (!iso) return ''
-    const parts = String(iso).split('-')
-    if (parts.length !== 3) return ''
-    const [y, m, d] = parts
-    return `${d}/${m}/${y}`
-  }
 
   async function loadByRole(role){
     if (!allowedRoles.includes(role)) return
@@ -77,7 +83,10 @@ export default function AdminUsers(){
 
   function validate(){
     const next = {}
-    if (!/^([^\s@]+)@([^\s@]+)\.[^\s@]{2,}$/.test(email)) next.email = 'Email không hợp lệ (phải có tên miền)'
+    // Chỉ yêu cầu email hợp lệ nếu không phải học sinh/phụ huynh
+    if (role !== 'STUDENT' && role !== 'PARENT' && !/^([^\s@]+)@([^\s@]+)\.[^\s@]{2,}$/.test(email)) {
+      next.email = 'Email không hợp lệ (phải có tên miền)'
+    }
     if (!username.trim()) next.username = 'Nhập họ và tên'
     const isoFromText = (()=>{
       const m = /^\s*(\d{2})\/(\d{2})\/(\d{4})\s*$/.exec(birthdateText)
@@ -140,8 +149,8 @@ export default function AdminUsers(){
         <h3>Quản lý tài khoản (Admin)</h3>
         <div className="user-form-grid">
           <div className={`field${errors.email ? ' has-error' : ''}`}>
-            <label className="field-label">Email đăng nhập</label>
-            <input className={`input${errors.email? ' input-error':''}`} placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} autoComplete="off" name="admin_create_email" />
+            <label className="field-label">Email đăng nhập{(role === 'STUDENT' || role === 'PARENT') ? ' (không bắt buộc)' : ''}</label>
+            <input className={`input${errors.email? ' input-error':''}`} placeholder={(role === 'STUDENT' || role === 'PARENT') ? 'Email (không bắt buộc)' : 'Email'} value={email} onChange={e=>setEmail(e.target.value)} autoComplete="off" name="admin_create_email" />
             {errors.email && <div className="field-error">{errors.email}</div>}
           </div>
           <div className={`field${errors.username ? ' has-error' : ''}`}>
@@ -255,7 +264,7 @@ function EditableRow({ user, onUpdated, onDeleted }){
   const [username, setUsername] = useState(user.username || '')
   const [gender, setGender] = useState(normalizeGender(user.gender))
   const [birthdate, setBirthdate] = useState(user.birthdate ? String(user.birthdate).slice(0,10) : '')
-  const [birthdateText, setBirthdateText] = useState(user.birthdate ? new Date(user.birthdate).toLocaleDateString('vi-VN') : '')
+  const [birthdateText, setBirthdateText] = useState(user.birthdate ? formatIsoToDdMmYyyy(user.birthdate) : '')
   const [phone, setPhone] = useState(user.phone || '')
   const [role, setRole] = useState(user.role)
   const ref = useRef(null)
@@ -266,13 +275,23 @@ function EditableRow({ user, onUpdated, onDeleted }){
   }
   function toTextFromIso(iso){
     if (!iso) return ''
-    const [y,m,d] = String(iso).split('-')
-    if (!y||!m||!d) return ''
-    return `${d}/${m}/${y}`
+    try {
+      const date = new Date(iso)
+      if (Number.isNaN(date.getTime())) return ''
+      const day = String(date.getDate()).padStart(2, '0')
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const year = date.getFullYear()
+      return `${day}/${month}/${year}`
+    } catch (_err) {
+      return ''
+    }
   }
 
   async function save(){
-    if (!/^([^\s@]+)@([^\s@]+)\.[^\s@]{2,}$/.test(email)) return alert('Email không hợp lệ (phải có tên miền)')
+    // Chỉ yêu cầu email hợp lệ nếu không phải học sinh/phụ huynh
+    if (role !== 'STUDENT' && role !== 'PARENT' && !/^([^\s@]+)@([^\s@]+)\.[^\s@]{2,}$/.test(email)) {
+      return alert('Email không hợp lệ (phải có tên miền)')
+    }
     if (!username.trim()) return alert('Nhập họ và tên')
     if (!role) return alert('Chọn quyền')
     if (!gender) return alert('Chọn giới tính')
@@ -299,7 +318,7 @@ function EditableRow({ user, onUpdated, onDeleted }){
         <td>{user.id}</td>
         <td>{user.username}</td>
         <td>{renderGender(user.gender)}</td>
-        <td>{user.birthdate ? new Date(user.birthdate).toLocaleDateString('vi-VN') : ''}</td>
+        <td>{formatIsoToDdMmYyyy(user.birthdate)}</td>
         <td>{user.email}</td>
         <td>{user.phone}</td>
         <td>
@@ -328,7 +347,7 @@ function EditableRow({ user, onUpdated, onDeleted }){
           <button type="button" className="btn secondary" onClick={()=>ref.current && (ref.current.showPicker? ref.current.showPicker() : ref.current.click())}>Chọn</button>
         </div>
       </td>
-      <td><input className="input" value={email} onChange={e=>setEmail(e.target.value)} /></td>
+      <td><input className="input" value={email} onChange={e=>setEmail(e.target.value)} placeholder={(role === 'STUDENT' || role === 'PARENT') ? 'Email (không bắt buộc)' : 'Email'} /></td>
       <td><input className="input" value={phone} onChange={e=>setPhone(e.target.value)} /></td>
       <td>
         <button className="btn" onClick={save}>Lưu</button>
@@ -364,14 +383,16 @@ function TableWithPaging({ rows, searchQuery, sortKey, sortDir, pageSize, curren
 
   return (
     <>
-      <table>
-        <thead><tr><th>ID</th><th>Họ và tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Email</th><th>Phone</th><th></th></tr></thead>
-        <tbody>
-          {pageRows.map(u => (
-            <EditableRow key={u.id} user={u} onUpdated={onReload} onDeleted={onReload} />
-          ))}
-        </tbody>
-      </table>
+      <div className="table-responsive">
+        <table>
+          <thead><tr><th>ID</th><th>Họ và tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Email</th><th>Phone</th><th></th></tr></thead>
+          <tbody>
+            {pageRows.map(u => (
+              <EditableRow key={u.id} user={u} onUpdated={onReload} onDeleted={onReload} />
+            ))}
+          </tbody>
+        </table>
+      </div>
       <div className="row" style={{justifyContent:'space-between', marginTop:12}}>
         <div>{total} kết quả • Trang {page}/{totalPages}</div>
         <div className="row">
