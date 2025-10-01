@@ -8,13 +8,38 @@ studentRouter.use(requireAuth, requireRoles('STUDENT', 'ADMIN'));
 
 studentRouter.get('/me/timetable', async (req, res) => {
   try {
+    // Check if there is an active term covering today
+    const [[activeTerm]] = await pool.query(
+      'SELECT COUNT(1) AS cnt FROM terms WHERE CURDATE() BETWEEN start_date AND end_date'
+    );
+
+    const whereTerm = activeTerm && activeTerm.cnt > 0
+      ? 'AND CURDATE() BETWEEN t.start_date AND t.end_date'
+      : '';
+
     const [rows] = await pool.query(
-      `SELECT te.*, c.name AS class_name, s.name AS subject_name
+      `SELECT 
+              te.id,
+              te.term_id,
+              te.class_id,
+              te.subject_id,
+              te.teacher_user_id,
+              te.day_of_week,
+              te.period_index,
+              c.name AS class_name,
+              c.room_name AS room_name,
+              s.name AS subject_name,
+              u.username AS teacher_name,
+              t.name AS term_name
        FROM class_enrollments ce
        JOIN timetable_entries te ON te.class_id = ce.class_id
        JOIN classes c ON c.id = te.class_id
        JOIN subjects s ON s.id = te.subject_id
-       WHERE ce.student_user_id = ? AND ce.active = TRUE
+       JOIN users u ON u.id = te.teacher_user_id
+       JOIN terms t ON t.id = te.term_id
+       WHERE ce.student_user_id = ?
+         AND ce.active = TRUE
+         ${whereTerm}
        ORDER BY te.day_of_week, te.period_index`,
       [req.user.id]
     );
@@ -38,6 +63,33 @@ studentRouter.get('/me/class', async (req, res) => {
     res.json(rows[0] || null);
   } catch (err) {
     res.status(500).json({ error: 'Failed to load class' });
+  }
+});
+
+// Danh sách bạn cùng lớp đang active
+studentRouter.get('/me/classmates', async (req, res) => {
+  try {
+    // Tìm lớp hiện tại của học sinh
+    const [[cls]] = await pool.query(
+      `SELECT ce.class_id
+       FROM class_enrollments ce
+       WHERE ce.student_user_id = ? AND ce.active = TRUE
+       LIMIT 1`,
+      [req.user.id]
+    );
+    if (!cls) return res.json([]);
+
+    const [rows] = await pool.query(
+      `SELECT u.id, u.username, u.gender, u.birthdate, u.phone
+       FROM class_enrollments ce
+       JOIN users u ON u.id = ce.student_user_id
+       WHERE ce.class_id = ? AND ce.active = TRUE
+       ORDER BY u.username`,
+      [cls.class_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load classmates' });
   }
 });
 
