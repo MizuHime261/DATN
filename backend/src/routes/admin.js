@@ -1235,6 +1235,37 @@ adminRouter.delete('/timetable-entries/:id', async (req, res) => {
   }
 });
 
+// Cập nhật tiết học trong thời khóa biểu
+adminRouter.put('/timetable-entries/:id', async (req, res) => {
+  const { id } = req.params;
+  const { term_id, class_id, subject_id, teacher_user_id, day_of_week, period_index } = req.body;
+  if (!term_id || !class_id || !subject_id || !teacher_user_id || !day_of_week || !period_index) {
+    return res.status(400).json({ error: 'Thiếu thông tin bắt buộc' });
+  }
+  try {
+    // Kiểm tra tồn tại các khóa ngoại cơ bản
+    const [[term]] = await pool.query('SELECT id FROM terms WHERE id=? LIMIT 1', [term_id]);
+    if (!term) return res.status(404).json({ error: 'Học kỳ không tồn tại' });
+    const [[cls]] = await pool.query('SELECT id FROM classes WHERE id=? LIMIT 1', [class_id]);
+    if (!cls) return res.status(404).json({ error: 'Lớp học không tồn tại' });
+    const [[sub]] = await pool.query('SELECT id FROM subjects WHERE id=? LIMIT 1', [subject_id]);
+    if (!sub) return res.status(404).json({ error: 'Môn học không tồn tại' });
+    const [[tch]] = await pool.query('SELECT id, role FROM users WHERE id=? LIMIT 1', [teacher_user_id]);
+    if (!tch || tch.role !== 'TEACHER') return res.status(404).json({ error: 'Giáo viên không tồn tại' });
+
+    const [result] = await pool.query(
+      `UPDATE timetable_entries 
+       SET term_id=?, class_id=?, subject_id=?, teacher_user_id=?, day_of_week=?, period_index=?
+       WHERE id=?`,
+      [term_id, class_id, subject_id, teacher_user_id, day_of_week, period_index, id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Tiết học không tồn tại' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err?.sqlMessage || err?.message || 'Cập nhật tiết học thất bại' });
+  }
+});
+
 // Timetable management
 adminRouter.post('/periods', async (req, res) => {
   const { level_id, day_of_week, period_index, start_time, end_time } = req.body;

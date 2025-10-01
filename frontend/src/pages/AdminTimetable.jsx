@@ -37,6 +37,7 @@ export default function AdminTimetable(){
   
   const [msg, setMsg] = useState('')
   const [activeView, setActiveView] = useState('create') // 'create' | 'view'
+  const [editingEntry, setEditingEntry] = useState(null) // entry đang chỉnh sửa
 
   const daysOfWeek = [
     { value: 1, label: 'Thứ 2' },
@@ -206,6 +207,34 @@ export default function AdminTimetable(){
     }
   }
 
+  async function updateTimetableEntry() {
+    setMsg('')
+    try {
+      if (!editingEntry) return
+      if (!selectedTerm || !selectedClass || !selectedSubject || !selectedTeacher || !selectedDay || !selectedPeriod) {
+        setMsg('Vui lòng chọn đầy đủ thông tin')
+        return
+      }
+      const payload = {
+        term_id: Number(selectedTerm),
+        class_id: Number(selectedClass),
+        subject_id: Number(selectedSubject),
+        teacher_user_id: Number(selectedTeacher),
+        day_of_week: Number(selectedDay),
+        period_index: Number(selectedPeriod)
+      }
+      await axios.put(`/api/admin/timetable-entries/${editingEntry.id}`, payload)
+      setMsg('Cập nhật tiết học thành công')
+      setEditingEntry(null)
+      const { data } = await axios.get('/api/admin/timetable-entries', {
+        params: { term_id: selectedTerm, class_id: selectedClass }
+      })
+      setTimetableEntries(data)
+    } catch (err) {
+      setMsg(err?.response?.data?.error || 'Cập nhật tiết học thất bại')
+    }
+  }
+
   async function deleteTimetableEntry(entryId) {
     if (!confirm('Xác nhận xóa tiết học này?')) return
     try {
@@ -262,13 +291,36 @@ export default function AdminTimetable(){
                           <div className="time">
                             {period ? `${formatTime(period.start_time)} - ${formatTime(period.end_time)}` : ''}
                           </div>
-                          <button 
-                            className="delete-btn" 
-                            onClick={() => deleteTimetableEntry(entry.id)}
-                            title="Xóa tiết học"
-                          >
-                            ✕
-                          </button>
+                          <div className="row" style={{marginTop:4, gap:4}}>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                // Tự động chọn cấp/ky/lop theo entry để sửa
+                                const cls = classes.find(c => String(c.id) === String(entry.class_id))
+                                const grd = cls ? grades.find(g => String(g.id) === String(cls.grade_id)) : null
+                                const lvlId = grd ? grd.level_id : ''
+                                if (lvlId) setSelectedLevel(String(lvlId))
+                                setActiveView('create')
+                                setSelectedTerm(String(entry.term_id))
+                                setSelectedClass(String(entry.class_id))
+                                setSelectedSubject(String(entry.subject_id))
+                                setSelectedTeacher(String(entry.teacher_user_id))
+                                setSelectedDay(String(entry.day_of_week))
+                                setSelectedPeriod(String(entry.period_index))
+                                setEditingEntry(entry)
+                              }}
+                              title="Chỉnh sửa tiết học"
+                            >
+                              Sửa
+                            </button>
+                            <button 
+                              className="delete-btn" 
+                              onClick={() => deleteTimetableEntry(entry.id)}
+                              title="Xóa tiết học"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <div className="empty-slot">
@@ -314,7 +366,7 @@ export default function AdminTimetable(){
 
       {activeView === 'create' && (
         <div className="mt24">
-          <h4>Tạo tiết học mới</h4>
+          <h4>{editingEntry ? 'Chỉnh sửa tiết học' : 'Tạo tiết học mới'}</h4>
           <div className="row mt16">
             <select 
               className="input" 
@@ -412,13 +464,32 @@ export default function AdminTimetable(){
               ))}
             </select>
             
-            <button 
-              className="btn" 
-              onClick={createTimetableEntry}
-              disabled={!selectedPeriod}
-            >
-              Thêm tiết học
-            </button>
+            {editingEntry ? (
+              <>
+                <button 
+                  className="btn"
+                  onClick={updateTimetableEntry}
+                  disabled={!selectedPeriod}
+                >
+                  Lưu thay đổi
+                </button>
+                <button 
+                  className="btn"
+                  style={{marginLeft:8}}
+                  onClick={() => { setEditingEntry(null); setMsg('Đã hủy chỉnh sửa') }}
+                >
+                  Hủy
+                </button>
+              </>
+            ) : (
+              <button 
+                className="btn" 
+                onClick={createTimetableEntry}
+                disabled={!selectedPeriod}
+              >
+                Thêm tiết học
+              </button>
+            )}
           </div>
           
           {msg && <div className="msg">{msg}</div>}
