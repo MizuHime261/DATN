@@ -26,19 +26,62 @@ staffRouter.get('/grades', async (_req, res) => {
 });
 // Create invoices in batch for all active students in a grade
 staffRouter.post('/invoices/batch-by-grade', async (req, res) => {
+  console.log('Received request body:', req.body);
   const { grade_id, billing_period_start, billing_period_end, items = [], replace } = req.body;
+  
+  console.log('Parsed values:', {
+    grade_id,
+    grade_id_type: typeof grade_id,
+    billing_period_start,
+    billing_period_end,
+    items_length: items.length,
+    items_is_array: Array.isArray(items)
+  });
+  
   if (!grade_id || !billing_period_start || !billing_period_end || !Array.isArray(items) || items.length===0) {
+    console.log('Validation failed:', {
+      has_grade_id: !!grade_id,
+      has_start: !!billing_period_start,
+      has_end: !!billing_period_end,
+      is_items_array: Array.isArray(items),
+      items_length: items.length
+    });
     return res.status(400).json({ error: 'grade_id, period and items required' });
   }
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+    
+    // Get level_id from grade_id first
+    console.log('Querying grade with ID:', grade_id);
+    const [gradeRows] = await conn.query(
+      `SELECT level_id FROM grades WHERE id=? LIMIT 1`, [grade_id]
+    );
+    
+    console.log('Grade query result:', gradeRows);
+    
+    if (!gradeRows || gradeRows.length === 0) {
+      console.log('Grade not found for ID:', grade_id);
+      await conn.rollback();
+      return res.status(400).json({ error: 'Grade not found' });
+    }
+    
+    const gradeInfo = gradeRows[0];
+    
+    const level_id = gradeInfo.level_id;
+    
     // find student ids in this grade (active enrollment)
     const [students] = await conn.query(
       `SELECT DISTINCT ce.student_user_id AS id
        FROM classes c JOIN class_enrollments ce ON ce.class_id=c.id
        WHERE c.grade_id=? AND ce.active=TRUE`, [grade_id]
     );
+    
+    if (students.length === 0) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'No active students found in this grade' });
+    }
+    
     let created = 0, updated = 0;
     for (const s of students){
       // ensure invoice exists or create
@@ -55,8 +98,8 @@ staffRouter.post('/invoices/batch-by-grade', async (req, res) => {
         updated++;
       } else {
         const [r] = await conn.query(
-          `INSERT INTO invoices (student_user_id, billing_period_start, billing_period_end, status, total_cents)
-           VALUES (?, ?, ?, 'DRAFT', 0)`, [s.id, billing_period_start, billing_period_end]
+          `INSERT INTO invoices (student_user_id, level_id, billing_period_start, billing_period_end, status, total_cents)
+           VALUES (?, ?, ?, ?, 'DRAFT', 0)`, [s.id, level_id, billing_period_start, billing_period_end]
         );
         invoiceId = r.insertId; created++;
       }
@@ -162,15 +205,27 @@ staffRouter.patch('/invoices/:invoiceId', async (req, res) => {
 // Boarding meals: create plan for primary (level 1) or by grade
 staffRouter.post('/meal-plans', async (req, res) => {
   const { school_id, plan_date, meal_type, title, price_cents } = req.body;
+  
+  // Validation
+  if (!school_id || !plan_date || !meal_type || !title || price_cents === undefined) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+  
+  const validMealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+  if (!validMealTypes.includes(meal_type)) {
+    return res.status(400).json({ error: 'Invalid meal type' });
+  }
+  
   try {
     await pool.query(
       `INSERT INTO meal_plans (school_id, plan_date, meal_type, title, price_cents)
        VALUES (?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE title=VALUES(title), price_cents=VALUES(price_cents)`,
-      [school_id, plan_date, meal_type || 'LUNCH', title, price_cents]
+      [school_id, plan_date, meal_type, title.trim(), Number(price_cents)]
     );
-    res.status(201).json({ ok: true });
+    res.status(201).json({ ok: true, message: 'Meal plan saved successfully' });
   } catch (err) {
+    console.error('Error saving meal plan:', err);
     res.status(400).json({ error: 'Upsert meal plan failed' });
   }
 });

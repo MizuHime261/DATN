@@ -1,53 +1,345 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import axios from 'axios'
 
 export default function StaffMeals(){
-  const [schoolId, setSchoolId] = useState('')
   const [rows, setRows] = useState([])
-  const [form, setForm] = useState({ school_id:'', plan_date:'', meal_type:'LUNCH', title:'', price_cents:'' })
+  const [form, setForm] = useState({ 
+    school_id: '1', 
+    plan_date: '', 
+    meal_type: 'LUNCH', 
+    title: '', 
+    price_cents: '' 
+  })
+  const [filters, setFilters] = useState({ school_id: '', date_from: '', date_to: '', meal_type: '' })
   const [msg, setMsg] = useState('')
+  const [msgType, setMsgType] = useState('')
+  const [loading, setLoading] = useState(false)
+  const dateRef = useRef(null)
+
+  // Date conversion functions
+  function toIsoFromText(s){
+    const m = /^\s*(\d{2})\/(\d{2})\/(\d{4})\s*$/.exec(s || '')
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : ''
+  }
+  
+  function toTextFromIso(iso){
+    if (!iso) return ''
+    try {
+      const dateStr = iso.includes('T') ? iso.split('T')[0] : iso
+      const date = new Date(dateStr + 'T00:00:00.000Z')
+      if (Number.isNaN(date.getTime())) return ''
+      
+      const day = String(date.getUTCDate()).padStart(2, '0')
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+      const year = date.getUTCFullYear()
+      return `${day}/${month}/${year}`
+    } catch (_err) {
+      return ''
+    }
+  }
 
   async function load(){
-    const { data } = await axios.get('/api/staff/meal-plans', { params: schoolId? { school_id: schoolId } : {} })
-    setRows(data)
+    setLoading(true)
+    try {
+      const params = {}
+      if (filters.school_id) params.school_id = filters.school_id
+      
+      const { data } = await axios.get('/api/staff/meal-plans', { params })
+      
+      // Filter on frontend if needed
+      let filteredData = data
+      if (filters.date_from) {
+        filteredData = filteredData.filter(row => new Date(row.plan_date) >= new Date(filters.date_from))
+      }
+      if (filters.date_to) {
+        filteredData = filteredData.filter(row => new Date(row.plan_date) <= new Date(filters.date_to))
+      }
+      if (filters.meal_type) {
+        filteredData = filteredData.filter(row => row.meal_type === filters.meal_type)
+      }
+      
+      setRows(filteredData)
+    } catch (error) {
+      showMessage('Lỗi khi tải dữ liệu', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
+  
   useEffect(()=>{ load() },[])
 
-  async function save(){
-    setMsg('')
-    try{
-      await axios.post('/api/staff/meal-plans', { ...form, price_cents: Number(form.price_cents||0) })
-      setMsg('Lưu suất ăn thành công'); await load()
-    }catch{ setMsg('Lưu thất bại') }
+  function showMessage(message, type = 'success') {
+    setMsg(message)
+    setMsgType(type)
+    setTimeout(() => {
+      setMsg('')
+      setMsgType('')
+    }, 3000)
   }
 
+  async function save(){
+    if (!form.plan_date) {
+      showMessage('Vui lòng chọn ngày', 'error')
+      return
+    }
+    if (!form.title.trim()) {
+      showMessage('Vui lòng nhập tên món ăn', 'error')
+      return
+    }
+    if (!form.price_cents || Number(form.price_cents) <= 0) {
+      showMessage('Vui lòng nhập giá hợp lệ', 'error')
+      return
+    }
+
+    try {
+      const payload = {
+        ...form,
+        price_cents: Number(form.price_cents),
+        title: form.title.trim()
+      }
+      
+      await axios.post('/api/staff/meal-plans', payload)
+      showMessage('Lưu suất ăn thành công!', 'success')
+      
+      // Reset form
+      setForm({ 
+        school_id: '1', 
+        plan_date: '', 
+        meal_type: 'LUNCH', 
+        title: '', 
+        price_cents: '' 
+      })
+      
+      await load()
+    } catch (error) {
+      showMessage('Lưu thất bại: ' + (error.response?.data?.error || 'Lỗi không xác định'), 'error')
+    }
+  }
+
+  // Generate quick date options
+  const today = new Date()
+  const tomorrow = new Date(today)
+  tomorrow.setDate(today.getDate() + 1)
+  const nextWeek = new Date(today)
+  nextWeek.setDate(today.getDate() + 7)
+
   return (
-    <div className="card">
-      <h3>Quản lý suất ăn</h3>
-      <div className="row mt16">
-        <input className="input" placeholder="school_id lọc" value={schoolId} onChange={e=>setSchoolId(e.target.value)} />
-        <button className="btn" onClick={load}>Tải</button>
-      </div>
-      <div className="row mt16">
-        <input className="input" placeholder="school_id" value={form.school_id} onChange={e=>setForm(f=>({...f, school_id:e.target.value}))} />
-        <input className="input" type="date" value={form.plan_date} onChange={e=>setForm(f=>({...f, plan_date:e.target.value}))} />
-        <select className="input" value={form.meal_type} onChange={e=>setForm(f=>({...f, meal_type:e.target.value}))}><option>LUNCH</option></select>
-      </div>
-      <div className="row mt16">
-        <input className="input" placeholder="Tên món" value={form.title} onChange={e=>setForm(f=>({...f, title:e.target.value}))} />
-        <input className="input" placeholder="Giá (đ)" value={form.price_cents} onChange={e=>setForm(f=>({...f, price_cents:e.target.value}))} />
-        <button className="btn" onClick={save}>Lưu</button>
-      </div>
-      {msg && <div className="mt16">{msg}</div>}
-      <div className="mt16">
-        {rows.length===0? 'Không có dữ liệu' : (
-          <table>
-            <thead><tr><th>Ngày</th><th>Loại</th><th>Tiêu đề</th><th>Giá</th></tr></thead>
-            <tbody>
-              {rows.map(r => (<tr key={r.id}><td>{r.plan_date}</td><td>{r.meal_type}</td><td>{r.title}</td><td>{r.price_cents}</td></tr>))}
-            </tbody>
-          </table>
+    <div className="staff-meals-page">
+      {/* Top Section - Create Meal Plan */}
+      <div className="card mb-24">
+        <div className="meal-form-header">
+          <h2 className="meal-form-title">Tạo thực đơn bán trú</h2>
+          <p className="meal-form-subtitle">Lập kế hoạch bữa ăn cho học sinh bán trú</p>
+        </div>
+
+        <div className="meal-form-grid">
+          <div className="form-section">
+            <h4 className="section-title">Thông tin cơ bản</h4>
+            <div className="form-row">
+              <div className="form-field">
+                <label className="field-label">Trường học</label>
+                <select 
+                  className="input" 
+                  value={form.school_id} 
+                  onChange={e=>setForm(f=>({...f, school_id:e.target.value}))}
+                >
+                  <option value="1">Trường Tiểu học ABC</option>
+                  <option value="2">Trường THCS XYZ</option>
+                </select>
+              </div>
+              
+              <div className="form-field">
+                <label className="field-label">Ngày phục vụ</label>
+                <div className="date-input-wrapper">
+                  <input 
+                    ref={dateRef}
+                    type="date" 
+                    className="input date-input" 
+                    value={form.plan_date} 
+                    onChange={e=>setForm(f=>({...f, plan_date: e.target.value}))}
+                  />
+                  <div className="date-display">
+                    {form.plan_date ? toTextFromIso(form.plan_date) : 'Chọn ngày phục vụ'}
+                  </div>
+                </div>
+                <div className="quick-date-buttons">
+                  <button 
+                    type="button" 
+                    className="btn-quick-date"
+                    onClick={() => setForm(f=>({...f, plan_date: today.toISOString().split('T')[0]}))}
+                  >
+                    Hôm nay
+                  </button>
+                  <button 
+                    type="button" 
+                    className="btn-quick-date"
+                    onClick={() => setForm(f=>({...f, plan_date: tomorrow.toISOString().split('T')[0]}))}
+                  >
+                    Ngày mai
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label className="field-label">Loại bữa ăn</label>
+                <select 
+                  className="input" 
+                  value={form.meal_type} 
+                  onChange={e=>setForm(f=>({...f, meal_type:e.target.value}))}
+                >
+                  <option value="BREAKFAST">🌅 Bữa sáng</option>
+                  <option value="LUNCH">🍽️ Bữa trưa</option>
+                  <option value="DINNER">🌙 Bữa tối</option>
+                  <option value="SNACK">🍪 Bữa phụ</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="form-section">
+            <h4 className="section-title">Chi tiết thực đơn</h4>
+            <div className="form-row">
+              <div className="form-field form-field-wide">
+                <label className="field-label">Tên món ăn / Thực đơn</label>
+                <input 
+                  className="input" 
+                  placeholder="VD: Cơm gà xối mỡ, canh chua cá lóc, rau muống luộc..." 
+                  value={form.title} 
+                  onChange={e=>setForm(f=>({...f, title:e.target.value}))} 
+                />
+              </div>
+              
+              <div className="form-field">
+                <label className="field-label">Giá tiền (VNĐ)</label>
+                <input 
+                  className="input" 
+                  type="number" 
+                  placeholder="25000" 
+                  value={form.price_cents} 
+                  onChange={e=>setForm(f=>({...f, price_cents:e.target.value}))} 
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="form-actions">
+          <button className="btn btn-primary btn-save-meal" onClick={save}>
+            🍽️ Lưu thực đơn
+          </button>
+        </div>
+        
+        {msg && (
+          <div className={`meal-message ${msgType === 'error' ? 'meal-message-error' : 'meal-message-success'}`}>
+            {msg}
+          </div>
         )}
+      </div>
+
+      {/* Bottom Section - Meal Plans List */}
+      <div className="card">
+        <div className="meal-list-header">
+          <h3 className="meal-list-title">Danh sách thực đơn</h3>
+          <div className="meal-filters">
+            <select 
+              className="input filter-input" 
+              value={filters.meal_type} 
+              onChange={e=>setFilters(f=>({...f, meal_type:e.target.value}))}
+            >
+              <option value="">Tất cả bữa ăn</option>
+              <option value="BREAKFAST">Bữa sáng</option>
+              <option value="LUNCH">Bữa trưa</option>
+              <option value="DINNER">Bữa tối</option>
+              <option value="SNACK">Bữa phụ</option>
+            </select>
+            <input 
+              type="date" 
+              className="input filter-input" 
+              placeholder="Từ ngày"
+              value={filters.date_from}
+              onChange={e=>setFilters(f=>({...f, date_from:e.target.value}))}
+            />
+            <input 
+              type="date" 
+              className="input filter-input" 
+              placeholder="Đến ngày"
+              value={filters.date_to}
+              onChange={e=>setFilters(f=>({...f, date_to:e.target.value}))}
+            />
+            <button className="btn btn-search" onClick={load}>
+              🔍 Lọc
+            </button>
+          </div>
+        </div>
+
+        <div className="meal-list-content">
+          {loading ? (
+            <div className="loading-state">
+              <div className="loading-spinner"></div>
+              <p>Đang tải danh sách thực đơn...</p>
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🍽️</div>
+              <h4>Chưa có thực đơn nào</h4>
+              <p>Tạo thực đơn mới bằng form phía trên</p>
+            </div>
+          ) : (
+            <div className="meal-table-wrapper">
+              <table className="meal-table">
+                <thead>
+                  <tr>
+                    <th>Ngày phục vụ</th>
+                    <th>Bữa ăn</th>
+                    <th>Thực đơn</th>
+                    <th>Giá tiền</th>
+                    <th>Trường</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(r => (
+                    <tr key={`${r.school_id}-${r.plan_date}-${r.meal_type}`} className="meal-row">
+                      <td className="meal-date">
+                        {toTextFromIso(r.plan_date)}
+                      </td>
+                      <td>
+                        <span className={`meal-type-badge meal-type-${r.meal_type.toLowerCase()}`}>
+                          {r.meal_type === 'BREAKFAST' ? '🌅 Sáng' :
+                           r.meal_type === 'LUNCH' ? '🍽️ Trưa' :
+                           r.meal_type === 'DINNER' ? '🌙 Tối' :
+                           r.meal_type === 'SNACK' ? '🍪 Phụ' : r.meal_type}
+                        </span>
+                      </td>
+                      <td className="meal-title">{r.title}</td>
+                      <td className="meal-price">
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(r.price_cents)}
+                      </td>
+                      <td className="meal-school">Trường {r.school_id}</td>
+                      <td>
+                        <button 
+                          className="btn btn-edit" 
+                          onClick={() => {
+                            setForm({
+                              school_id: r.school_id,
+                              plan_date: r.plan_date,
+                              meal_type: r.meal_type,
+                              title: r.title,
+                              price_cents: r.price_cents
+                            })
+                          }}
+                          title="Chỉnh sửa"
+                        >
+                          ✏️
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -384,4 +384,1019 @@ tbody tr{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(16,24,40,.0
   background: #dc2626;
 }
 
+/* Staff Invoices Page Styles */
+.staff-invoices-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.mb-24 {
+  margin-bottom: 24px;
+}
+
+/* Invoice Form Styles */
+.invoice-form-header {
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 16px;
+}
+
+.invoice-form-title {
+  margin: 0 0 8px 0;
+  color: var(--blue);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.invoice-form-subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.invoice-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.form-section {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.section-title {
+  margin: 0 0 16px 0;
+  color: var(--blue);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.date-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.date-display {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #374151;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.date-display::after {
+  content: '📅';
+  font-size: 16px;
+  color: var(--blue);
+  margin-left: 8px;
+}
+
+.date-input-wrapper:hover .date-display {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(13,71,161,0.1);
+}
+
+.date-input:focus + .date-display {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(13,71,161,0.1);
+}
+
+.date-display:has(+ .date-input:focus) {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(13,71,161,0.1);
+}
+
+/* Invoice Items Table */
+.invoice-items-table {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.items-table th {
+  background: var(--blue);
+  color: white;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.items-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.items-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table-input {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.table-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(13,71,161,0.1);
+}
+
+.btn-delete {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s ease;
+}
+
+.btn-delete:hover {
+  background: #dc2626;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-create-invoice {
+  background: linear-gradient(135deg, var(--blue), var(--blue-600));
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(13,71,161,0.3);
+}
+
+.btn-create-invoice:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(13,71,161,0.4);
+}
+
+/* Invoice List Styles */
+.invoice-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.invoice-list-title {
+  margin: 0;
+  color: var(--blue);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.invoice-search-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 250px;
+}
+
+.btn-search {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+
+.btn-search:hover {
+  background: var(--blue-600);
+}
+
+/* Loading and Empty States */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid var(--blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: #64748b;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state h4 {
+  margin: 0 0 8px 0;
+  color: #374151;
+  font-size: 18px;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Invoice Table */
+.invoice-table-wrapper {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.invoice-table th {
+  background: var(--blue);
+  color: white;
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.invoice-table td {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.invoice-row:hover {
+  background: #f8fafc;
+}
+
+.invoice-row:last-child td {
+  border-bottom: none;
+}
+
+.invoice-id {
+  font-weight: 600;
+  color: var(--blue);
+}
+
+.student-name {
+  font-weight: 500;
+  color: #374151;
+}
+
+.invoice-amount {
+  font-weight: 600;
+  color: #059669;
+}
+
+.invoice-date {
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-draft {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-issued {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status-partially_paid {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.status-paid {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.status-void {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Item Type Badges */
+.item-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.type-tuition {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.type-meal {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.type-fee {
+  background: #e0e7ff;
+  color: #6366f1;
+}
+
+.type-discount {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.type-other {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.btn-view {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.btn-view:hover {
+  background: var(--blue-600);
+}
+
+/* Invoice Detail Section */
+.invoice-detail-section {
+  margin-top: 32px;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 24px;
+  border: 2px solid #e2e8f0;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.detail-title {
+  margin: 0;
+  color: var(--blue);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.btn-close {
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.btn-close:hover {
+  background: #dc2626;
+}
+
+.detail-info {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #374151;
+}
+
+.info-value {
+  font-weight: 700;
+  color: #059669;
+  font-size: 16px;
+}
+
+.detail-items {
+  margin-bottom: 32px;
+}
+
+.detail-items h5 {
+  margin: 0 0 16px 0;
+  color: var(--blue);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.detail-items-table {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detail-items-table th {
+  background: var(--blue-600);
+  color: white;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.detail-items-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.detail-items-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.detail-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.add-item-section,
+.status-update-section {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.add-item-section h5,
+.status-update-section h5 {
+  margin: 0 0 16px 0;
+  color: var(--blue);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.add-item-form,
+.status-update-form {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.add-item-form .input,
+.status-update-form .input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.add-item-form .btn,
+.status-update-form .btn {
+  white-space: nowrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .staff-invoices-page {
+    gap: 16px;
+  }
+  
+  .invoice-form-grid {
+    gap: 20px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .date-input-wrapper {
+    margin-bottom: 8px;
+  }
+  
+  .date-display {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+  
+  .invoice-list-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .invoice-search-bar {
+    flex-direction: column;
+    max-width: none;
+  }
+  
+  .search-input {
+    min-width: auto;
+  }
+  
+  .invoice-table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .invoice-table {
+    min-width: 600px;
+  }
+  
+  .detail-actions {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .add-item-form,
+  .status-update-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .add-item-form .input,
+  .status-update-form .input {
+    min-width: auto;
+  }
+  
+  .detail-info {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .form-section {
+    padding: 16px;
+  }
+  
+  .invoice-form-title {
+    font-size: 20px;
+  }
+  
+  .section-title {
+    font-size: 16px;
+  }
+  
+  .items-table th,
+  .items-table td {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  
+  .invoice-table th,
+  .invoice-table td {
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+  
+  .btn-create-invoice {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+  
+  .invoice-detail-section {
+    padding: 16px;
+  }
+}
+
+/* Staff Meals Page Styles */
+.staff-meals-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Meal Form Styles */
+.meal-form-header {
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 16px;
+}
+
+.meal-form-title {
+  margin: 0 0 8px 0;
+  color: var(--blue);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.meal-form-subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.meal-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.form-field-wide {
+  grid-column: 1 / -1;
+}
+
+.quick-date-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn-quick-date {
+  background: #f1f5f9;
+  color: var(--blue);
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-quick-date:hover {
+  background: var(--blue);
+  color: white;
+}
+
+.btn-save-meal {
+  background: linear-gradient(135deg, #059669, #047857);
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(5,150,105,0.3);
+}
+
+.btn-save-meal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(5,150,105,0.4);
+}
+
+/* Meal Messages */
+.meal-message {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.meal-message-success {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.meal-message-error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+/* Meal List Styles */
+.meal-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.meal-list-title {
+  margin: 0;
+  color: var(--blue);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.meal-filters {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-input {
+  min-width: 150px;
+}
+
+/* Meal Table */
+.meal-table-wrapper {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.meal-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0;
+}
+
+.meal-table th {
+  background: #059669;
+  color: white;
+  padding: 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.meal-table td {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: middle;
+}
+
+.meal-row:hover {
+  background: #f0fdf4;
+}
+
+.meal-row:last-child td {
+  border-bottom: none;
+}
+
+.meal-date {
+  font-weight: 600;
+  color: #374151;
+}
+
+.meal-title {
+  font-weight: 500;
+  color: #374151;
+  max-width: 300px;
+  line-height: 1.4;
+}
+
+.meal-price {
+  font-weight: 600;
+  color: #059669;
+}
+
+.meal-school {
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* Meal Type Badges */
+.meal-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.meal-type-breakfast {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.meal-type-lunch {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.meal-type-dinner {
+  background: #e0e7ff;
+  color: #6366f1;
+}
+
+.meal-type-snack {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.btn-edit {
+  background: var(--blue);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.btn-edit:hover {
+  background: var(--blue-600);
+}
+
+/* Responsive Design for Meals */
+@media (max-width: 768px) {
+  .staff-meals-page {
+    gap: 16px;
+  }
+  
+  .meal-form-grid {
+    gap: 20px;
+  }
+  
+  .meal-list-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .meal-filters {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .filter-input {
+    min-width: auto;
+    width: 100%;
+  }
+  
+  .meal-table-wrapper {
+    overflow-x: auto;
+  }
+  
+  .meal-table {
+    min-width: 700px;
+  }
+  
+  .quick-date-buttons {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .btn-quick-date {
+    width: 100%;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .meal-form-title {
+    font-size: 20px;
+  }
+  
+  .meal-table th,
+  .meal-table td {
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+  
+  .btn-save-meal {
+    padding: 12px 24px;
+    font-size: 14px;
+  }
+  
+  .meal-title {
+    max-width: 200px;
+    font-size: 13px;
+  }
+}
+
 
