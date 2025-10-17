@@ -34,11 +34,19 @@ parentRouter.get('/children/:studentId/timetable', async (req, res) => {
     if (linked.length === 0) return res.status(403).json({ error: 'Not linked' });
 
     const [rows] = await pool.query(
-      `SELECT te.*, c.name AS class_name, s.name AS subject_name
+      `SELECT te.*, 
+              c.name AS class_name,
+              c.room_name AS room_name,
+              s.name AS subject_name,
+              t.name AS term_name,
+              u.username AS teacher_name,
+              u.phone AS teacher_phone
        FROM class_enrollments ce
        JOIN timetable_entries te ON te.class_id = ce.class_id
        JOIN classes c ON c.id = te.class_id
        JOIN subjects s ON s.id = te.subject_id
+       JOIN terms t ON t.id = te.term_id
+       LEFT JOIN users u ON u.id = te.teacher_user_id
        WHERE ce.student_user_id = ? AND ce.active = TRUE
        ORDER BY te.day_of_week, te.period_index`,
       [studentId]
@@ -175,15 +183,38 @@ parentRouter.get('/children/:studentId/class', async (req, res) => {
   try {
     const [authz] = await pool.query('SELECT 1 FROM parent_student WHERE parent_id=? AND student_id=? LIMIT 1', [req.user.id, studentId]);
     if (authz.length === 0) return res.status(403).json({ error: 'Not linked' });
-    const [rows] = await pool.query(
-      `SELECT c.*, u.username AS homeroom_teacher
+
+    // Get current class and homeroom teacher info
+    const [[cls]] = await pool.query(
+      `SELECT c.id AS class_id, c.name AS class_name, c.room_name,
+              t.username AS homeroom_teacher_name, t.phone AS homeroom_teacher_phone
        FROM class_enrollments ce
        JOIN classes c ON c.id = ce.class_id
-       LEFT JOIN users u ON u.id = c.homeroom_teacher_id
-       WHERE ce.student_user_id=? AND ce.active=TRUE LIMIT 1`,
+       LEFT JOIN users t ON t.id = c.homeroom_teacher_id
+       WHERE ce.student_user_id=? AND ce.active=TRUE
+       LIMIT 1`,
       [studentId]
     );
-    res.json(rows[0] || null);
+    if (!cls) return res.json(null);
+
+    // Classmates list (exclude current student)
+    const [mates] = await pool.query(
+      `SELECT u.id, u.username, u.gender, u.phone
+       FROM class_enrollments ce
+       JOIN users u ON u.id = ce.student_user_id
+       WHERE ce.class_id=? AND ce.active=TRUE AND ce.student_user_id <> ?
+       ORDER BY u.username`,
+      [cls.class_id, studentId]
+    );
+
+    res.json({
+      class_id: cls.class_id,
+      class_name: cls.class_name,
+      room_name: cls.room_name,
+      homeroom_teacher_name: cls.homeroom_teacher_name || null,
+      homeroom_teacher_phone: cls.homeroom_teacher_phone || null,
+      classmates: mates
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load class info' });
   }

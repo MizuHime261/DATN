@@ -82,35 +82,78 @@ staffRouter.post('/invoices/batch-by-grade', async (req, res) => {
       return res.status(400).json({ error: 'No active students found in this grade' });
     }
     
+    // Ensure boarding_registrations table exists for meal filtering
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS boarding_registrations (
+        id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+        student_user_id INT NOT NULL,
+        term_id CHAR(36) NOT NULL,
+        start_date DATE NOT NULL,
+        end_date DATE NOT NULL,
+        status ENUM('REGISTERED','CANCELLED') NOT NULL DEFAULT 'REGISTERED'
+      ) ENGINE=InnoDB;`);
+
     let created = 0, updated = 0;
     for (const s of students){
-      // ensure invoice exists or create
+      // Split payload items into MEAL vs non-MEAL
+      const nonMealItems = items.filter(it => (it.item_type||'OTHER') !== 'MEAL');
+      const mealItems = items.filter(it => (it.item_type||'OTHER') === 'MEAL');
+
+      // Determine if student registered boarding overlapping the billing period
+      let isRegisteredForBoarding = false;
+      if (mealItems.length){
+        const [reg] = await conn.query(
+          `SELECT 1 FROM boarding_registrations
+           WHERE student_user_id=? AND status='REGISTERED'
+             AND NOT (end_date < ? OR start_date > ?)
+           LIMIT 1`,
+          [s.id, billing_period_start, billing_period_end]
+        );
+        isRegisteredForBoarding = reg.length > 0;
+      }
+
+      const finalItems = [
+        ...nonMealItems,
+        ...(isRegisteredForBoarding ? mealItems : [])
+      ];
+
+      // If no applicable items, skip creating invoice. If exists and replace, remove MEAL items and recalc total
       const [exist] = await conn.query(
         `SELECT id FROM invoices WHERE student_user_id=? AND billing_period_start=? AND billing_period_end=? LIMIT 1`,
         [s.id, billing_period_start, billing_period_end]
       );
       let invoiceId;
-      if (exist.length){
-        invoiceId = exist[0].id;
-        if (replace){
-          await conn.query('DELETE FROM invoice_items WHERE invoice_id=?', [invoiceId]);
+      if (!exist.length){
+        if (finalItems.length === 0) {
+          // Nothing to bill -> skip student entirely
+          continue;
         }
-        updated++;
-      } else {
         const [r] = await conn.query(
           `INSERT INTO invoices (student_user_id, level_id, billing_period_start, billing_period_end, status, total_cents)
            VALUES (?, ?, ?, ?, 'DRAFT', 0)`, [s.id, level_id, billing_period_start, billing_period_end]
         );
         invoiceId = r.insertId; created++;
+      } else {
+        invoiceId = exist[0].id;
+        if (replace){
+          // Replace: remove all items first
+          await conn.query('DELETE FROM invoice_items WHERE invoice_id=?', [invoiceId]);
+        } else if (!isRegisteredForBoarding && mealItems.length){
+          // Not replacing, but ensure MEAL items are not present when not registered
+          await conn.query("DELETE FROM invoice_items WHERE invoice_id=? AND item_type='MEAL'", [invoiceId]);
+        }
+        updated++;
       }
-      // insert items
-      for (const it of items){
+
+      // Insert applicable items
+      for (const it of finalItems){
         const qty = Number(it.quantity||1); const unit = Number(it.unit_price_cents||0); const total = Math.round(qty*unit);
         await conn.query(
           `INSERT INTO invoice_items (invoice_id, item_type, description, quantity, unit_price_cents, total_cents)
-           VALUES (?, ?, ?, ?, ?, ?)`, [invoiceId, it.item_type||'OTHER', it.description||'Khoản phí', qty, unit, total]
+           VALUES (?, ?, ?, ?, ?, ?)`, [invoiceId, it.item_type||'OTHER', (it.description||'Khoản phí').trim(), qty, unit, total]
         );
       }
+      // Recalculate total; if no items remain, set total to 0
       await conn.query('UPDATE invoices SET total_cents=(SELECT COALESCE(SUM(total_cents),0) FROM invoice_items WHERE invoice_id=?) WHERE id=?', [invoiceId, invoiceId]);
     }
     await conn.commit();
@@ -202,26 +245,27 @@ staffRouter.patch('/invoices/:invoiceId', async (req, res) => {
   }
 });
 
-// Boarding meals: create plan for primary (level 1) or by grade
+// Boarding meals: create or update plan by education level
 staffRouter.post('/meal-plans', async (req, res) => {
-  const { school_id, plan_date, meal_type, title, price_cents } = req.body;
-  
+  const { level_id, plan_date, meal_type, title, price_cents } = req.body;
+
   // Validation
-  if (!school_id || !plan_date || !meal_type || !title || price_cents === undefined) {
-    return res.status(400).json({ error: 'All fields are required' });
+  if (!level_id || !plan_date || !meal_type || !title) {
+    return res.status(400).json({ error: 'level_id, plan_date, meal_type, title are required' });
   }
-  
-  const validMealTypes = ['BREAKFAST', 'LUNCH', 'DINNER', 'SNACK'];
+
+  // Align with DB enum: meal_plans.meal_type enum('LUNCH') currently
+  const validMealTypes = ['LUNCH'];
   if (!validMealTypes.includes(meal_type)) {
-    return res.status(400).json({ error: 'Invalid meal type' });
+    return res.status(400).json({ error: 'Invalid meal type. Only LUNCH is supported' });
   }
-  
+
   try {
     await pool.query(
-      `INSERT INTO meal_plans (school_id, plan_date, meal_type, title, price_cents)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE title=VALUES(title), price_cents=VALUES(price_cents)`,
-      [school_id, plan_date, meal_type, title.trim(), Number(price_cents)]
+      `INSERT INTO meal_plans (level_id, plan_date, meal_type, title, price_cents)
+       VALUES (?, ?, ?, ?, COALESCE(?, 0))
+       ON DUPLICATE KEY UPDATE title=VALUES(title), price_cents=COALESCE(VALUES(price_cents), 0)`,
+      [level_id, plan_date, meal_type, title.trim(), price_cents]
     );
     res.status(201).json({ ok: true, message: 'Meal plan saved successfully' });
   } catch (err) {
@@ -230,13 +274,13 @@ staffRouter.post('/meal-plans', async (req, res) => {
   }
 });
 
-// List meal plans
+// List meal plans (optionally filter by level)
 staffRouter.get('/meal-plans', async (req, res) => {
-  const { school_id } = req.query;
+  const { level_id } = req.query;
   try {
     const [rows] = await pool.query(
-      school_id ? 'SELECT * FROM meal_plans WHERE school_id=? ORDER BY plan_date' : 'SELECT * FROM meal_plans ORDER BY plan_date',
-      school_id ? [school_id] : []
+      level_id ? 'SELECT * FROM meal_plans WHERE level_id=? ORDER BY plan_date' : 'SELECT * FROM meal_plans ORDER BY plan_date',
+      level_id ? [level_id] : []
     );
     res.json(rows);
   } catch (err) {

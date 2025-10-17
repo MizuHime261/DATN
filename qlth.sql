@@ -284,3 +284,53 @@ VALUES
   ('kimngoc.do.parent@gmail.com',      SHA2('123456',256), 'Đỗ Kim Ngọc',       'PARENT', '0924000009'),
   ('kimphung.bui.parent@gmail.com',    SHA2('123456',256), 'Bùi Kim Phụng',     'PARENT', '0924000010')
 ON DUPLICATE KEY UPDATE username=VALUES(username), role=VALUES(role), phone=VALUES(phone);
+
+
+
+-- - 1. Tạo bảng thông tin học sinh
+CREATE TABLE student_info (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT,
+  status ENUM('ACTIVE', 'GRADUATED', 'TRANSFERRED', 'DROPPED') DEFAULT 'ACTIVE',
+  enrollment_date DATE,
+  graduation_date DATE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- 2. Thêm dữ liệu cho học sinh hiện có
+INSERT INTO student_info (user_id, status, enrollment_date)
+SELECT id, 'ACTIVE', NOW() FROM users WHERE role = 'STUDENT';
+
+-- 3. Tạo bảng lịch sử chuyển lớp
+CREATE TABLE student_class_history (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  student_id INT,
+  class_id INT,
+  level_id INT,
+  start_date DATE,
+  end_date DATE,
+  reason ENUM('PROMOTION', 'TRANSFER', 'REPEAT', 'GRADUATION') DEFAULT 'PROMOTION',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES users(id),
+  FOREIGN KEY (class_id) REFERENCES classes(id),
+  FOREIGN KEY (level_id) REFERENCES education_levels(id)
+);
+
+-- Bảng liên kết khối với môn học
+-- CREATE TABLE subject_levels (
+--     id INT AUTO_INCREMENT PRIMARY KEY,
+--     subject_id INT NOT NULL,
+--     level_id INT NOT NULL,
+--     UNIQUE KEY uq_subject_level (subject_id, level_id),
+--     CONSTRAINT fk_sl_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+--     CONSTRAINT fk_sl_level   FOREIGN KEY (level_id)   REFERENCES education_levels(id) ON DELETE CASCADE
+-- ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS subject_grades (
+  subject_id INT NOT NULL,
+  grade_id   INT NOT NULL,
+  UNIQUE KEY uq_subject_grade (subject_id),
+  CONSTRAINT fk_sg_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_sg_grade   FOREIGN KEY (grade_id)   REFERENCES grades(id)   ON DELETE CASCADE
+) ENGINE=InnoDB;

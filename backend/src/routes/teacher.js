@@ -134,6 +134,7 @@ teacherRouter.get('/grades/report', async (req, res) => {
         subject_id CHAR(36) NOT NULL,
         term_id CHAR(36) NOT NULL,
         oral DECIMAL(4,2) NULL,
+        quiz DECIMAL(4,2) NULL,
         test DECIMAL(4,2) NULL,
         exam DECIMAL(4,2) NULL,
         average DECIMAL(4,2) NULL,
@@ -141,7 +142,7 @@ teacherRouter.get('/grades/report', async (req, res) => {
       ) ENGINE=InnoDB;`);
 
     const [rows] = await pool.query(
-      `SELECT u.id AS student_id, u.username, g.oral, g.test, g.exam,
+      `SELECT u.id AS student_id, u.username, g.oral, g.quiz, g.test, g.exam,
               COALESCE(g.average, ROUND((COALESCE(g.oral,0)+COALESCE(g.test,0)+COALESCE(g.exam,0))/NULLIF((g.oral IS NOT NULL)+(g.test IS NOT NULL)+(g.exam IS NOT NULL),0),2)) AS average
        FROM class_enrollments ce
        JOIN users u ON u.id = ce.student_user_id
@@ -199,7 +200,8 @@ teacherRouter.post('/grades', async (req, res) => {
 
     res.status(201).json({ ok: true, average: avg });
   } catch (err) {
-    res.status(400).json({ error: 'Upsert grade failed' });
+    // Surface SQL error for easier debugging from frontend
+    res.status(400).json({ error: err?.sqlMessage || err?.message || 'Upsert grade failed' });
   }
 });
 
@@ -224,7 +226,7 @@ teacherRouter.put('/grades', async (req, res) => {
 
     res.json({ ok: true, average: avg });
   } catch (err) {
-    res.status(400).json({ error: 'Update grade failed' });
+    res.status(400).json({ error: err?.sqlMessage || err?.message || 'Update grade failed' });
   }
 });
 

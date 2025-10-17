@@ -70,7 +70,8 @@ export default function TeacherGrades(){
           oral: row.oral || '',
           test: row.test || '',
           exam: row.exam || '',
-          quiz: row.quiz || ''
+          quiz: row.quiz || '',
+          _exists: row.oral != null || row.test != null || row.exam != null || row.quiz != null
         }
       })
       setGrades(gradeMap)
@@ -104,8 +105,7 @@ export default function TeacherGrades(){
     try {
       const promises = Object.entries(grades).map(([studentId, scores]) => {
         if (!scores.oral && !scores.test && !scores.exam && !scores.quiz) return Promise.resolve()
-        
-        return axios.post('/api/teacher/grades', {
+        const payload = {
           student_user_id: studentId,
           subject_id: selectedSubject,
           term_id: selectedTerm,
@@ -113,7 +113,9 @@ export default function TeacherGrades(){
           test: scores.test ? Number(scores.test) : null,
           exam: scores.exam ? Number(scores.exam) : null,
           quiz: scores.quiz ? Number(scores.quiz) : null
-        })
+        }
+        // Use PUT if grade existed before; else POST
+        return (scores._exists ? axios.put('/api/teacher/grades', payload) : axios.post('/api/teacher/grades', payload))
       })
       
       await Promise.all(promises.filter(p => p))
@@ -139,7 +141,7 @@ export default function TeacherGrades(){
     
     setMsg('')
     try {
-      await axios.post('/api/teacher/grades', {
+      const payload = {
         student_user_id: studentId,
         subject_id: selectedSubject,
         term_id: selectedTerm,
@@ -147,7 +149,14 @@ export default function TeacherGrades(){
         test: scores.test ? Number(scores.test) : null,
         exam: scores.exam ? Number(scores.exam) : null,
         quiz: scores.quiz ? Number(scores.quiz) : null
-      })
+      }
+      const existed = !!scores._exists
+      await (existed ? axios.put('/api/teacher/grades', payload) : axios.post('/api/teacher/grades', payload))
+      // Mark as existing after successful save
+      setGrades(prev => ({
+        ...prev,
+        [studentId]: { ...(prev[studentId]||{}), _exists: true }
+      }))
       setMsg('Lưu điểm thành công')
     } catch {
       setMsg('Lưu điểm thất bại')

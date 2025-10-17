@@ -4,13 +4,12 @@ import axios from 'axios'
 export default function StaffMeals(){
   const [rows, setRows] = useState([])
   const [form, setForm] = useState({ 
-    school_id: '1', 
+    level_id: '1', 
     plan_date: '', 
     meal_type: 'LUNCH', 
-    title: '', 
-    price_cents: '' 
+    title: '' 
   })
-  const [filters, setFilters] = useState({ school_id: '', date_from: '', date_to: '', meal_type: '' })
+  const [filters, setFilters] = useState({ level_id: '', date_from: '', date_to: '', meal_type: '' })
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('')
   const [loading, setLoading] = useState(false)
@@ -42,7 +41,7 @@ export default function StaffMeals(){
     setLoading(true)
     try {
       const params = {}
-      if (filters.school_id) params.school_id = filters.school_id
+      if (filters.level_id) params.level_id = filters.level_id
       
       const { data } = await axios.get('/api/staff/meal-plans', { params })
       
@@ -86,15 +85,11 @@ export default function StaffMeals(){
       showMessage('Vui lòng nhập tên món ăn', 'error')
       return
     }
-    if (!form.price_cents || Number(form.price_cents) <= 0) {
-      showMessage('Vui lòng nhập giá hợp lệ', 'error')
-      return
-    }
+    // No price validation; price is handled in invoices
 
     try {
       const payload = {
         ...form,
-        price_cents: Number(form.price_cents),
         title: form.title.trim()
       }
       
@@ -103,11 +98,10 @@ export default function StaffMeals(){
       
       // Reset form
       setForm({ 
-        school_id: '1', 
+        level_id: '1', 
         plan_date: '', 
         meal_type: 'LUNCH', 
-        title: '', 
-        price_cents: '' 
+        title: '' 
       })
       
       await load()
@@ -137,14 +131,15 @@ export default function StaffMeals(){
             <h4 className="section-title">Thông tin cơ bản</h4>
             <div className="form-row">
               <div className="form-field">
-                <label className="field-label">Trường học</label>
+                <label className="field-label">Cấp học</label>
                 <select 
                   className="input" 
-                  value={form.school_id} 
-                  onChange={e=>setForm(f=>({...f, school_id:e.target.value}))}
+                  value={form.level_id} 
+                  onChange={e=>setForm(f=>({...f, level_id:e.target.value}))}
                 >
-                  <option value="1">Trường Tiểu học ABC</option>
-                  <option value="2">Trường THCS XYZ</option>
+                  <option value="1">Tiểu học</option>
+                  <option value="2">THCS</option>
+                  <option value="3">THPT</option>
                 </select>
               </div>
               
@@ -209,16 +204,7 @@ export default function StaffMeals(){
                 />
               </div>
               
-              <div className="form-field">
-                <label className="field-label">Giá tiền (VNĐ)</label>
-                <input 
-                  className="input" 
-                  type="number" 
-                  placeholder="25000" 
-                  value={form.price_cents} 
-                  onChange={e=>setForm(f=>({...f, price_cents:e.target.value}))} 
-                />
-              </div>
+              {/* Giá tiền bỏ khỏi form; được tạo ở hóa đơn */}
             </div>
           </div>
         </div>
@@ -238,9 +224,19 @@ export default function StaffMeals(){
 
       {/* Bottom Section - Meal Plans List */}
       <div className="card">
-        <div className="meal-list-header">
+            <div className="meal-list-header">
           <h3 className="meal-list-title">Danh sách thực đơn</h3>
           <div className="meal-filters">
+            <select 
+              className="input filter-input" 
+              value={filters.level_id} 
+              onChange={e=>setFilters(f=>({...f, level_id:e.target.value}))}
+            >
+              <option value="">Tất cả cấp học</option>
+              <option value="1">Tiểu học</option>
+              <option value="2">THCS</option>
+              <option value="3">THPT</option>
+            </select>
             <select 
               className="input filter-input" 
               value={filters.meal_type} 
@@ -292,14 +288,14 @@ export default function StaffMeals(){
                     <th>Ngày phục vụ</th>
                     <th>Bữa ăn</th>
                     <th>Thực đơn</th>
-                    <th>Giá tiền</th>
-                    <th>Trường</th>
+                    {/* Ẩn giá tiền; chỉ hiển thị cấp học */}
+                    <th>Cấp học</th>
                     <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map(r => (
-                    <tr key={`${r.school_id}-${r.plan_date}-${r.meal_type}`} className="meal-row">
+                    <tr key={`${r.level_id}-${r.plan_date}-${r.meal_type}`} className="meal-row">
                       <td className="meal-date">
                         {toTextFromIso(r.plan_date)}
                       </td>
@@ -312,20 +308,17 @@ export default function StaffMeals(){
                         </span>
                       </td>
                       <td className="meal-title">{r.title}</td>
-                      <td className="meal-price">
-                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(r.price_cents)}
-                      </td>
-                      <td className="meal-school">Trường {r.school_id}</td>
+                      <td className="meal-school">Cấp {r.level_id}</td>
                       <td>
                         <button 
                           className="btn btn-edit" 
                           onClick={() => {
                             setForm({
-                              school_id: r.school_id,
+                              level_id: r.level_id,
                               plan_date: r.plan_date,
                               meal_type: r.meal_type,
                               title: r.title,
-                              price_cents: r.price_cents
+                              
                             })
                           }}
                           title="Chỉnh sửa"
