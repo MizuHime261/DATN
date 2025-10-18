@@ -36,6 +36,8 @@ export default function TeacherTimetable(){
         axios.get('/api/teacher/timetable', { params: selectedTerm ? { term_id: selectedTerm } : {} }),
         homeroomClass ? axios.get('/api/teacher/class-timetable', { params: { class_id: homeroomClass.id, ...(selectedTerm? { term_id: selectedTerm } : {}) } }) : Promise.resolve({ data: [] })
       ])
+      
+      
       setPersonalRows(me)
       setHomeroomRows(classTt)
     } finally { setLoading(false) }
@@ -96,13 +98,18 @@ export default function TeacherTimetable(){
                   {Array.from({ length: maxPeriods }, (_, i) => {
                     const periodIndex = i + 1
                     const entry = matrix[i][dayIdx]
+                    
+                    
                     return (
                       <td key={periodIndex} className="timetable-cell">
                         {entry ? (
                           <div className="entry">
                             <div className="subject">{entry.subject_name}</div>
-                            <div className="teacher">{entry.teacher_name || ''}</div>
                             <div className="class">{entry.class_name || ''}</div>
+                            {entry.room_name && (
+                              <div className="classroom">🏫 {entry.room_name}</div>
+                            )}
+                            <div className="teacher">{entry.teacher_name || ''}</div>
                           </div>
                         ) : (
                           <div className="empty-slot" />
@@ -150,5 +157,3 @@ export default function TeacherTimetable(){
     </div>
   )
 }
-
-

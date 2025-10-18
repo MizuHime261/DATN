@@ -10,7 +10,7 @@ export default function TeacherGrades(){
   const [selectedClass, setSelectedClass] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('')
   const [selectedTerm, setSelectedTerm] = useState('')
-  const [grades, setGrades] = useState({}) // { student_id: { oral, test, exam, quiz } }
+  const [grades, setGrades] = useState({}) // { student_id: { oral, test, exam } }
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
 
@@ -70,8 +70,7 @@ export default function TeacherGrades(){
           oral: row.oral || '',
           test: row.test || '',
           exam: row.exam || '',
-          quiz: row.quiz || '',
-          _exists: row.oral != null || row.test != null || row.exam != null || row.quiz != null
+          _exists: row.oral != null || row.test != null || row.exam != null
         }
       })
       setGrades(gradeMap)
@@ -104,15 +103,14 @@ export default function TeacherGrades(){
     setLoading(true)
     try {
       const promises = Object.entries(grades).map(([studentId, scores]) => {
-        if (!scores.oral && !scores.test && !scores.exam && !scores.quiz) return Promise.resolve()
+        if (!scores.oral && !scores.test && !scores.exam) return Promise.resolve()
         const payload = {
           student_user_id: studentId,
           subject_id: selectedSubject,
           term_id: selectedTerm,
           oral: scores.oral ? Number(scores.oral) : null,
           test: scores.test ? Number(scores.test) : null,
-          exam: scores.exam ? Number(scores.exam) : null,
-          quiz: scores.quiz ? Number(scores.quiz) : null
+          exam: scores.exam ? Number(scores.exam) : null
         }
         // Use PUT if grade existed before; else POST
         return (scores._exists ? axios.put('/api/teacher/grades', payload) : axios.post('/api/teacher/grades', payload))
@@ -134,7 +132,7 @@ export default function TeacherGrades(){
     }
     
     const scores = grades[studentId] || {}
-    if (!scores.oral && !scores.test && !scores.exam && !scores.quiz) {
+    if (!scores.oral && !scores.test && !scores.exam) {
       setMsg('Vui lòng nhập ít nhất một điểm')
       return
     }
@@ -147,8 +145,7 @@ export default function TeacherGrades(){
         term_id: selectedTerm,
         oral: scores.oral ? Number(scores.oral) : null,
         test: scores.test ? Number(scores.test) : null,
-        exam: scores.exam ? Number(scores.exam) : null,
-        quiz: scores.quiz ? Number(scores.quiz) : null
+        exam: scores.exam ? Number(scores.exam) : null
       }
       const existed = !!scores._exists
       await (existed ? axios.put('/api/teacher/grades', payload) : axios.post('/api/teacher/grades', payload))
@@ -229,8 +226,7 @@ export default function TeacherGrades(){
                 <thead>
                   <tr>
                     <th>Họ tên</th>
-                    <th>Điểm miệng (15p)</th>
-                    <th>Điểm 1 tiết</th>
+                    <th>Điểm miệng</th>
                     <th>Điểm giữa kỳ</th>
                     <th>Điểm cuối kỳ</th>
                     <th>Điểm TB</th>
@@ -239,12 +235,11 @@ export default function TeacherGrades(){
                 </thead>
                 <tbody>
                   {students.map(student => {
-                    const studentGrades = grades[student.id] || { oral: '', test: '', exam: '', quiz: '' }
+                    const studentGrades = grades[student.id] || { oral: '', test: '', exam: '' }
                     const oral = Number(studentGrades.oral) || 0
-                    const quiz = Number(studentGrades.quiz) || 0
                     const test = Number(studentGrades.test) || 0
                     const exam = Number(studentGrades.exam) || 0
-                    const average = (oral + quiz + test + exam) / 4
+                    const average = (oral + test + exam) / 3
                     
                     return (
                       <tr key={student.id}>
@@ -256,19 +251,6 @@ export default function TeacherGrades(){
                             style={{width: 80}}
                             value={studentGrades.oral} 
                             onChange={e=>updateGrade(student.id, 'oral', e.target.value)}
-                            placeholder="0-10"
-                            min="0" 
-                            max="10" 
-                            step="0.1"
-                          />
-                        </td>
-                        <td>
-                          <input 
-                            type="number" 
-                            className="input" 
-                            style={{width: 80}}
-                            value={studentGrades.quiz} 
-                            onChange={e=>updateGrade(student.id, 'quiz', e.target.value)}
                             placeholder="0-10"
                             min="0" 
                             max="10" 

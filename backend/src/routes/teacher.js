@@ -15,7 +15,7 @@ teacherRouter.get('/timetable', async (req, res) => {
     let where = 'te.teacher_user_id = ?';
     if (term_id) { where += ' AND te.term_id = ?'; params.push(term_id); }
     const [rows] = await pool.query(
-      `SELECT te.*, c.name AS class_name, s.name AS subject_name
+      `SELECT te.*, c.name AS class_name, c.room_name, s.name AS subject_name
        FROM timetable_entries te
        JOIN classes c ON c.id = te.class_id
        JOIN subjects s ON s.id = te.subject_id
@@ -58,7 +58,7 @@ teacherRouter.get('/class-timetable', async (req, res) => {
     params.push(class_id);
     if (term_id) { where += ' AND tte.term_id = ?'; params.push(term_id); }
     const [rows] = await pool.query(
-      `SELECT tte.*, s.name AS subject_name, u.username AS teacher_name, c.name AS class_name, t.name AS term_name
+      `SELECT tte.*, s.name AS subject_name, u.username AS teacher_name, c.name AS class_name, c.room_name, t.name AS term_name
        FROM timetable_entries tte
        JOIN subjects s ON s.id = tte.subject_id
        JOIN users u ON u.id = tte.teacher_user_id
@@ -142,7 +142,7 @@ teacherRouter.get('/grades/report', async (req, res) => {
       ) ENGINE=InnoDB;`);
 
     const [rows] = await pool.query(
-      `SELECT u.id AS student_id, u.username, g.oral, g.quiz, g.test, g.exam,
+      `SELECT u.id AS student_id, u.username, g.oral, g.test, g.exam,
               COALESCE(g.average, ROUND((COALESCE(g.oral,0)+COALESCE(g.test,0)+COALESCE(g.exam,0))/NULLIF((g.oral IS NOT NULL)+(g.test IS NOT NULL)+(g.exam IS NOT NULL),0),2)) AS average
        FROM class_enrollments ce
        JOIN users u ON u.id = ce.student_user_id
@@ -172,30 +172,26 @@ teacherRouter.post('/grades', async (req, res) => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS student_grades (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
         student_user_id INT NOT NULL,
-        subject_id INT NOT NULL,
-        term_id INT NOT NULL,
+        subject_id CHAR(36) NOT NULL,
+        term_id CHAR(36) NOT NULL,
         oral DECIMAL(4,2) NULL,
-        quiz DECIMAL(4,2) NULL,
         test DECIMAL(4,2) NULL,
         exam DECIMAL(4,2) NULL,
         average DECIMAL(4,2) NULL,
-        UNIQUE KEY uq_grade (student_user_id, subject_id, term_id),
-        FOREIGN KEY (student_user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
-        FOREIGN KEY (term_id) REFERENCES terms(id) ON DELETE CASCADE
+        UNIQUE KEY uq_grade (student_user_id, subject_id, term_id)
       ) ENGINE=InnoDB;`);
 
-    const avg = [oral, quiz, test, exam].filter(v => typeof v === 'number' && v > 0).length
-      ? ((Number(oral || 0) + Number(quiz || 0) + Number(test || 0) + Number(exam || 0)) / [oral, quiz, test, exam].filter(v => v != null && v > 0).length)
+    const avg = [oral, test, exam].filter(v => typeof v === 'number' && v > 0).length
+      ? ((Number(oral || 0) + Number(test || 0) + Number(exam || 0)) / [oral, test, exam].filter(v => v != null && v > 0).length)
       : null;
 
     await pool.query(
-      `INSERT INTO student_grades (student_user_id, subject_id, term_id, oral, quiz, test, exam, average)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE oral=VALUES(oral), quiz=VALUES(quiz), test=VALUES(test), exam=VALUES(exam), average=VALUES(average)`,
-      [student_user_id, subject_id, term_id, oral ?? null, quiz ?? null, test ?? null, exam ?? null, avg]
+      `INSERT INTO student_grades (student_user_id, subject_id, term_id, oral, test, exam, average)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE oral=VALUES(oral), test=VALUES(test), exam=VALUES(exam), average=VALUES(average)`,
+      [student_user_id, subject_id, term_id, oral ?? null, test ?? null, exam ?? null, avg]
     );
 
     res.status(201).json({ ok: true, average: avg });
@@ -209,15 +205,15 @@ teacherRouter.post('/grades', async (req, res) => {
 teacherRouter.put('/grades', async (req, res) => {
   const { student_user_id, subject_id, term_id, oral, test, exam, quiz } = req.body;
   try {
-    const avg = [oral, quiz, test, exam].filter(v => typeof v === 'number' && v > 0).length
-      ? ((Number(oral || 0) + Number(quiz || 0) + Number(test || 0) + Number(exam || 0)) / [oral, quiz, test, exam].filter(v => v != null && v > 0).length)
+    const avg = [oral, test, exam].filter(v => typeof v === 'number' && v > 0).length
+      ? ((Number(oral || 0) + Number(test || 0) + Number(exam || 0)) / [oral, test, exam].filter(v => v != null && v > 0).length)
       : null;
 
     const [result] = await pool.query(
       `UPDATE student_grades 
-       SET oral=?, quiz=?, test=?, exam=?, average=?
+       SET oral=?, test=?, exam=?, average=?
        WHERE student_user_id=? AND subject_id=? AND term_id=?`,
-      [oral ?? null, quiz ?? null, test ?? null, exam ?? null, avg, student_user_id, subject_id, term_id]
+      [oral ?? null, test ?? null, exam ?? null, avg, student_user_id, subject_id, term_id]
     );
 
     if (result.affectedRows === 0) {
