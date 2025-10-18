@@ -11,6 +11,20 @@ function formatDate(dateString) {
   return `${day}/${month}/${year}`
 }
 
+// Generate subject code from subject name (remove accents and spaces)
+function generateSubjectCode(name) {
+  if (!name) return ''
+  
+  // Remove accents
+  const withoutAccents = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  
+  // Convert to lowercase and remove spaces
+  const code = withoutAccents.toLowerCase().replace(/\s+/g, '')
+  
+  console.log('Generated code for "' + name + '": "' + code + '"')
+  return code
+}
+
 export default function AdminAcademic(){
   const [subjects, setSubjects] = useState([])
   const [years, setYears] = useState([])
@@ -27,6 +41,7 @@ export default function AdminAcademic(){
   const [newTerm, setNewTerm] = useState({ school_year_id:'', name:'', term_order:'', start_date:'', end_date:'' })
   const [msg, setMsg] = useState('')
   const [activeList, setActiveList] = useState('terms') // 'years' | 'terms'
+  const [subjectFilterLevel, setSubjectFilterLevel] = useState('') // Filter for subjects list
 
   useEffect(()=>{ (async()=>{
     const [lev, grd, sub, yr, tm] = await Promise.all([
@@ -175,144 +190,222 @@ export default function AdminAcademic(){
   }
 
   return (
-    <div className="card">
-      <h3>Quản lý học vụ</h3>
-      <div className="row mt16" />
-      {msg && <div className="mt16">{msg}</div>}
-      <div className="mt24">
-        <h4>Môn học</h4>
-        <div className="row mt16">
-          <input className="input" placeholder="Mã môn (code)" value={newSubject.code} onChange={e=>setNewSubject(v=>({...v,code:e.target.value}))} />
-          <input className="input" placeholder="Tên môn (name)" value={newSubject.name} onChange={e=>setNewSubject(v=>({...v,name:e.target.value}))} />
-          <select className="input" value={newSubject.level_id} onChange={e=>setNewSubject(v=>({...v,level_id:e.target.value, grade_id:''}))}>
-            <option value="">-- Chọn cấp --</option>
-            {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select className="input" value={newSubject.grade_id} onChange={e=>setNewSubject(v=>({...v,grade_id:e.target.value}))} disabled={!newSubject.level_id}>
-            <option value="">-- Chọn khối --</option>
-            {grades.filter(g => !newSubject.level_id || String(g.level_id)===String(newSubject.level_id)).map(g => (
-              <option key={g.id} value={g.id}>Khối {g.grade_number}</option>
-            ))}
-          </select>
-          <button className="btn" onClick={saveSubject} disabled={!newSubject.level_id || !newSubject.grade_id}>Thêm</button>
+    <div className="user-page">
+      <div className="card user-top-card">
+        <h3>Quản lý học vụ</h3>
+        
+        {msg && <div className="user-alert user-alert--success">{msg}</div>}
+        
+        <div className="user-form-grid">
+          <div className="user-form-section">
+            <h4>Môn học</h4>
+            <div className="field">
+              <label className="field-label">Tên môn</label>
+              <input className="input" placeholder="Tên môn (name)" value={newSubject.name} onChange={e=>{
+                const name = e.target.value
+                const code = generateSubjectCode(name)
+                setNewSubject(v=>({...v,name, code}))
+              }} />
+            </div>
+            <div className="field">
+              <label className="field-label">Cấp học</label>
+              <select className="input" value={newSubject.level_id} onChange={e=>setNewSubject(v=>({...v,level_id:e.target.value, grade_id:''}))}>
+                <option value="">-- Chọn cấp --</option>
+                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label">Khối</label>
+              <select className="input" value={newSubject.grade_id} onChange={e=>setNewSubject(v=>({...v,grade_id:e.target.value}))} disabled={!newSubject.level_id}>
+                <option value="">-- Chọn khối --</option>
+                {grades.filter(g => !newSubject.level_id || String(g.level_id)===String(newSubject.level_id)).map(g => (
+                  <option key={g.id} value={g.id}>Khối {g.grade_number}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="user-form-section">
+            <h4>Gán giáo viên cho môn học</h4>
+            <div className="field">
+              <label className="field-label">Cấp học</label>
+              <select className="input" value={assignLevel} onChange={e=>{ setAssignLevel(e.target.value); setAssignGrade(''); setAssignSubject(''); setAssignTeacher('') }}>
+                <option value="">-- Chọn cấp --</option>
+                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label">Khối</label>
+              <select className="input" value={assignGrade} onChange={e=>{ setAssignGrade(e.target.value); setAssignSubject(''); setAssignTeacher('') }} disabled={!assignLevel}>
+                <option value="">-- Chọn khối --</option>
+                {grades.filter(g => String(g.level_id)===String(assignLevel)).map(g => (
+                  <option key={g.id} value={g.id}>Khối {g.grade_number}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label">Môn học</label>
+              <select className="input" value={assignSubject} onChange={e=>setAssignSubject(e.target.value)} disabled={!assignLevel}>
+                <option value="">-- Chọn môn --</option>
+                {subjects
+                  .filter(s => String(s.level_id||'')===String(assignLevel))
+                  .map(s => {
+                    const grade = grades.find(g => String(g.id) === String(s.grade_id))
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {grade ? `(Khối ${grade.grade_number})` : ''}
+                      </option>
+                    )
+                  })}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label">Giáo viên</label>
+              <select className="input" value={assignTeacher} onChange={e=>setAssignTeacher(e.target.value)} disabled={!assignSubject}>
+                <option value="">-- Chọn giáo viên --</option>
+                {assignTeachers.map(t => (
+                  <option key={`${t.teacher_id}-${t.level_id}`} value={t.teacher_id}>{t.teacher_name} ({t.teacher_email})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="user-form-section">
+            <h4>Năm học</h4>
+            <div className="field">
+              <label className="field-label">Cấp học</label>
+              <select className="input" value={newYear.level_id} onChange={e=>setNewYear(v=>({...v,level_id:e.target.value}))}>
+                <option value="">-- Chọn cấp --</option>
+                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label">Tên năm học</label>
+              <input className="input" placeholder="Tên năm học" value={newYear.name} onChange={e=>setNewYear(v=>({...v,name:e.target.value}))} />
+            </div>
+            <div className="field">
+              <label className="field-label">Ngày bắt đầu</label>
+              <input className="input" type="date" value={newYear.start_date} onChange={e=>setNewYear(v=>({...v,start_date:e.target.value}))} />
+            </div>
+            <div className="field">
+              <label className="field-label">Ngày kết thúc</label>
+              <input className="input" type="date" value={newYear.end_date} onChange={e=>setNewYear(v=>({...v,end_date:e.target.value}))} />
+            </div>
+          </div>
+
+          <div className="user-form-section">
+            <h4>Học kỳ</h4>
+            <div className="field">
+              <label className="field-label">Năm học</label>
+              <select className="input" value={newTerm.school_year_id} onChange={e=>handleYearChange(e.target.value)}>
+                <option value="">-- Chọn năm học --</option>
+                {years.map(y => {
+                  const lv = levels.find(l => String(l.id) === String(y.level_id))
+                  return (
+                    <option key={y.id} value={y.id}>{y.name} - {lv ? lv.name : ''}</option>
+                  )
+                })}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field-label">Tên học kỳ</label>
+              <input className="input" placeholder="Tên học kỳ" value={newTerm.name} onChange={e=>setNewTerm(v=>({...v,name:e.target.value}))} />
+            </div>
+            <div className="field">
+              <label className="field-label">Thứ tự</label>
+              <input className="input" placeholder="Thứ tự học kỳ" value={newTerm.term_order} onChange={e=>setNewTerm(v=>({...v,term_order:e.target.value}))} />
+            </div>
+            <div className="field">
+              <label className="field-label">Ngày bắt đầu</label>
+              <input className="input" type="date" value={newTerm.start_date} onChange={e=>setNewTerm(v=>({...v,start_date:e.target.value}))} />
+            </div>
+            <div className="field">
+              <label className="field-label">Ngày kết thúc</label>
+              <input className="input" type="date" value={newTerm.end_date} onChange={e=>setNewTerm(v=>({...v,end_date:e.target.value}))} />
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="mt24">
-        <h4>Gán giáo viên cho môn học</h4>
-        <div className="row mt16">
-          <select className="input" value={assignLevel} onChange={e=>{ setAssignLevel(e.target.value); setAssignGrade(''); setAssignSubject(''); setAssignTeacher('') }}>
-            <option value="">-- Chọn cấp --</option>
-            {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select className="input" value={assignGrade} onChange={e=>{ setAssignGrade(e.target.value); setAssignSubject(''); setAssignTeacher('') }} disabled={!assignLevel}>
-            <option value="">-- Chọn khối --</option>
-            {grades.filter(g => String(g.level_id)===String(assignLevel)).map(g => (
-              <option key={g.id} value={g.id}>Khối {g.grade_number}</option>
-            ))}
-          </select>
-          <select className="input" value={assignSubject} onChange={e=>setAssignSubject(e.target.value)} disabled={!assignGrade}>
-            <option value="">-- Chọn môn --</option>
-            {subjects
-              .filter(s => String(s.grade_id||'')===String(assignGrade))
-              .map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-          <select className="input" value={assignTeacher} onChange={e=>setAssignTeacher(e.target.value)} disabled={!assignSubject}>
-            <option value="">-- Chọn giáo viên --</option>
-            {assignTeachers.map(t => (
-              <option key={`${t.teacher_id}-${t.level_id}`} value={t.teacher_id}>{t.teacher_name} ({t.teacher_email})</option>
-            ))}
-          </select>
+
+        <div className="user-actions">
+          <button className="btn" onClick={saveSubject} disabled={!newSubject.level_id || !newSubject.grade_id}>Thêm môn</button>
           <button className="btn" onClick={async()=>{
             if (!assignSubject || !assignTeacher){ setMsg('Chọn đủ môn và giáo viên'); return }
             try{
               await axios.post('/api/admin/teacher-subjects', { teacher_user_id: Number(assignTeacher), subject_id: Number(assignSubject) })
               setMsg('Gán giáo viên thành công')
             }catch(err){ setMsg(err?.response?.data?.error || 'Gán giáo viên thất bại') }
-          }}>Gán</button>
-        </div>
-      </div>
-      <div className="mt24">
-        <h4>Năm học</h4>
-        <div className="row mt16">
-          <select className="input" value={newYear.level_id} onChange={e=>setNewYear(v=>({...v,level_id:e.target.value}))}>
-            <option value="">-- Chọn cấp --</option>
-            {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <input className="input" placeholder="Tên năm học" value={newYear.name} onChange={e=>setNewYear(v=>({...v,name:e.target.value}))} />
-          <input className="input" type="date" value={newYear.start_date} onChange={e=>setNewYear(v=>({...v,start_date:e.target.value}))} />
-          <input className="input" type="date" value={newYear.end_date} onChange={e=>setNewYear(v=>({...v,end_date:e.target.value}))} />
+          }}>Gán giáo viên</button>
           <button className="btn" onClick={saveYear}>Thêm năm học</button>
-        </div>
-      </div>
-      <div className="mt24">
-        <h4>Học kỳ</h4>
-        <div className="row mt16">
-          <select className="input" value={newTerm.school_year_id} onChange={e=>handleYearChange(e.target.value)}>
-            <option value="">-- Chọn năm học --</option>
-            {years.map(y => {
-              const lv = levels.find(l => String(l.id) === String(y.level_id))
-              return (
-                <option key={y.id} value={y.id}>{y.name} - {lv ? lv.name : ''}</option>
-              )
-            })}
-          </select>
-          <input className="input" placeholder="Tên học kỳ" value={newTerm.name} onChange={e=>setNewTerm(v=>({...v,name:e.target.value}))} />
-          <input className="input" placeholder="Thứ tự học kỳ" value={newTerm.term_order} onChange={e=>setNewTerm(v=>({...v,term_order:e.target.value}))} />
-          <input className="input" type="date" value={newTerm.start_date} onChange={e=>setNewTerm(v=>({...v,start_date:e.target.value}))} />
-          <input className="input" type="date" value={newTerm.end_date} onChange={e=>setNewTerm(v=>({...v,end_date:e.target.value}))} />
           <button className="btn" onClick={saveTerm}>Thêm học kỳ</button>
         </div>
       </div>
-      <div className="mt24">
-        <h4>Danh sách</h4>
-        <div className="row mt16">
-          <div className="filter-chipbar">
-            <button className={`btn ${activeList==='terms'?'primary':''}`} onClick={()=>setActiveList('terms')}>Học kỳ</button>
-            <button className={`btn ${activeList==='years'?'primary':''}`} style={{marginLeft:8}} onClick={()=>setActiveList('years')}>Năm học</button>
-            <button className={`btn ${activeList==='subjects'?'primary':''}`} style={{marginLeft:8}} onClick={()=>setActiveList('subjects')}>Môn học</button>
-          </div>
+
+      <div className="card user-list-card">
+        <div className="row" style={{justifyContent:'flex-start', flexWrap:'wrap'}}>
+          <button className={`btn ${activeList==='terms'?'primary':''}`} onClick={()=>setActiveList('terms')}>Học kỳ</button>
+          <button className={`btn ${activeList==='years'?'primary':''}`} onClick={()=>setActiveList('years')}>Năm học</button>
+          <button className={`btn ${activeList==='subjects'?'primary':''}`} onClick={()=>setActiveList('subjects')}>Môn học</button>
         </div>
-        {activeList==='subjects' && (
-        <>
-        <h4 className="mt16">Danh sách môn học</h4>
-        <table className="mt16">
-          <thead><tr><th>Mã</th><th>Tên môn</th><th>Cấp</th><th>Khối</th><th>Giáo viên</th><th></th></tr></thead>
-          <tbody>
-            {subjects.map(s => (
-              <SubjectRow key={s.id} s={s} levels={levels} grades={grades} onReload={async()=>{ const { data } = await axios.get('/api/admin/subjects'); setSubjects(data) }} />
-            ))}
-          </tbody>
-        </table>
-        </>
-        )}
-        {activeList==='years' && (
-          <>
-          <h4 className="mt16">Danh sách năm học</h4>
-          <table className="mt16">
-            <thead><tr><th>Năm học</th><th>Cấp</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th></th></tr></thead>
-            <tbody>
-              {years.map(y => (
-                <YearRow key={y.id} y={y} levels={levels} onReload={async()=>{ const { data } = await axios.get('/api/admin/school-years'); setYears(data) }} />
-              ))}
-            </tbody>
-          </table>
-          </>
-        )}
-        {activeList==='terms' && (
-          <>
-          <h4 className="mt16">Danh sách học kỳ</h4>
-          <table className="mt16">
-            <thead><tr><th>Năm học</th><th>Học kỳ</th><th>Cấp</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th></th></tr></thead>
-            <tbody>
-              {terms.map(t => (
-                <TermRow key={t.id} t={t} years={years} levels={levels} onReload={async()=>{ const { data } = await axios.get('/api/admin/terms'); setTerms(data) }} />
-              ))}
-            </tbody>
-          </table>
-          </>
-        )}
+        <div className="mt16" style={{minHeight:200}}>
+          <h3 style={{marginTop:0}}>{activeList? (activeList==='subjects'? 'Danh sách môn học' : activeList==='years'? 'Danh sách năm học' : 'Danh sách học kỳ') : 'Chọn danh mục để xem'}</h3>
+          {activeList==='subjects' && (
+            <div className="row" style={{marginBottom: '16px', alignItems: 'center'}}>
+              <label style={{marginRight: '8px', fontWeight: 'bold'}}>Lọc theo cấp:</label>
+              <select className="input" value={subjectFilterLevel} onChange={e=>setSubjectFilterLevel(e.target.value)} style={{width: '200px'}}>
+                <option value="">-- Tất cả cấp --</option>
+                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+          )}
+          {activeList==='subjects' && (
+            <div className="table-responsive">
+              <table className="mt16">
+                <thead><tr><th>Tên môn</th><th>Cấp</th><th>Khối</th><th>Giáo viên</th><th></th></tr></thead>
+                <tbody>
+                  {subjects
+                    .filter(s => !subjectFilterLevel || String(s.level_id) === String(subjectFilterLevel))
+                    .length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{textAlign: 'center', padding: '20px', color: '#666'}}>
+                        {subjectFilterLevel ? 'Không có môn học nào thuộc cấp được chọn' : 'Chưa có môn học nào'}
+                      </td>
+                    </tr>
+                  ) : (
+                    subjects
+                      .filter(s => !subjectFilterLevel || String(s.level_id) === String(subjectFilterLevel))
+                      .map(s => (
+                      <SubjectRow key={s.id} s={s} levels={levels} grades={grades} onReload={async()=>{ const { data } = await axios.get('/api/admin/subjects'); setSubjects(data) }} />
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {activeList==='years' && (
+            <div className="table-responsive">
+              <table className="mt16">
+                <thead><tr><th>Năm học</th><th>Cấp</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th></th></tr></thead>
+                <tbody>
+                  {years.map(y => (
+                    <YearRow key={y.id} y={y} levels={levels} onReload={async()=>{ const { data } = await axios.get('/api/admin/school-years'); setYears(data) }} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {activeList==='terms' && (
+            <div className="table-responsive">
+              <table className="mt16">
+                <thead><tr><th>Năm học</th><th>Học kỳ</th><th>Cấp</th><th>Ngày bắt đầu</th><th>Ngày kết thúc</th><th></th></tr></thead>
+                <tbody>
+                  {terms.map(t => (
+                    <TermRow key={t.id} t={t} years={years} levels={levels} onReload={async()=>{ const { data } = await axios.get('/api/admin/terms'); setTerms(data) }} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -516,7 +609,8 @@ function SubjectRow({ s, levels, grades, onReload }){
 
   async function save(){
     try{
-      const payload = { code, name, level_id: levelId ? Number(levelId) : null, grade_id: gradeId ? Number(gradeId) : null }
+      const generatedCode = generateSubjectCode(name)
+      const payload = { code: generatedCode, name, level_id: levelId ? Number(levelId) : null, grade_id: gradeId ? Number(gradeId) : null }
       await axios.put(`/api/admin/subjects/${s.id}`, payload)
       setEditing(false)
       await onReload()
@@ -531,11 +625,11 @@ function SubjectRow({ s, levels, grades, onReload }){
     await onReload()
   }
 
-  const gradeLabel = (grades.find(g=> String(g.id)===String(gradeId || s.grade_id))||{}).grade_number || ''
+  const grade = grades.find(g=> String(g.id)===String(gradeId || s.grade_id)) || {}
+  const gradeLabel = grade.grade_number ? `Khối ${grade.grade_number}` : ''
 
   if (!editing) return (
     <tr>
-      <td>{s.code}</td>
       <td>{s.name}</td>
       <td>{(levels.find(l=> String(l.id)===String(s.level_id))||{}).name || ''}</td>
       <td>{gradeLabel}</td>
@@ -549,10 +643,9 @@ function SubjectRow({ s, levels, grades, onReload }){
 
   return (
     <tr>
-      <td><input className="input" value={code} onChange={e=>setCode(e.target.value)} /></td>
       <td><input className="input" value={name} onChange={e=>setName(e.target.value)} /></td>
       <td>
-        <select className="input" value={levelId} onChange={e=>setLevelId(e.target.value)}>
+        <select className="input" value={levelId} onChange={e=>{ setLevelId(e.target.value); setGradeId('') }}>
           <option value="">-- Chọn cấp --</option>
           {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
@@ -560,14 +653,6 @@ function SubjectRow({ s, levels, grades, onReload }){
       <td>
         <select className="input" value={gradeId} onChange={e=>setGradeId(e.target.value)}>
           <option value="">-- Chọn khối --</option>
-          {grades.filter(g => !levelId || String(g.level_id)===String(levelId)).map(g => (
-            <option key={g.id} value={g.id}>Khối {g.grade_number}</option>
-          ))}
-        </select>
-      </td>
-      <td>
-        <select className="input" value={gradeId} onChange={e=>setGradeId(e.target.value)}>
-          <option value="">(không áp dụng)</option>
           {grades.filter(g => !levelId || String(g.level_id)===String(levelId)).map(g => (
             <option key={g.id} value={g.id}>Khối {g.grade_number}</option>
           ))}

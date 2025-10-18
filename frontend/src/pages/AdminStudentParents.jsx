@@ -258,6 +258,7 @@ export default function AdminStudentParents(){
 
   return (
     <div className="link-card">
+      <h3>Quản lý thông tin học sinh</h3>
       <div className="link-grid">
         <section className="link-section">
           <h4>Thông tin học sinh</h4>

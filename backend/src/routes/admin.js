@@ -593,25 +593,78 @@ adminRouter.post('/teacher-levels', async (req, res) => {
 
 adminRouter.put('/teacher-levels', async (req, res) => {
   const { teacher_id, level_id, position, start_date, end_date } = req.body;
+  console.log('PUT /teacher-levels - Request body:', { teacher_id, level_id, position, start_date, end_date });
+  
   if (!teacher_id || !level_id) return res.status(400).json({ error: 'teacher_id và level_id bắt buộc' });
+  
   try {
-    await pool.query(
-      'UPDATE teacher_level SET position=?, start_date=?, end_date=? WHERE teacher_id=? AND level_id=?',
-      [position || null, start_date || null, end_date || null, teacher_id, level_id]
-    )
+    // Check if teacher is currently a homeroom teacher
+    console.log('Checking if teacher is homeroom teacher...');
+    const [homeroomCheck] = await pool.query(
+      'SELECT COUNT(*) as count FROM classes WHERE homeroom_teacher_id = ?',
+      [teacher_id]
+    );
+    console.log('Homeroom teacher check result:', homeroomCheck);
+    
+    if (homeroomCheck[0].count > 0) {
+      console.log('Teacher is currently a homeroom teacher, cannot change level');
+      return res.status(400).json({ error: 'Giáo viên đang là giáo viên chủ nhiệm không thể thay đổi' });
+    }
+    
+    // Since each teacher can only teach at one level, we need to:
+    // 1. Delete all existing records for this teacher
+    // 2. Insert the new record
+    
+    console.log('Deleting all existing records for teacher:', teacher_id);
+    const [deleteResult] = await pool.query(
+      'DELETE FROM teacher_level WHERE teacher_id=?',
+      [teacher_id]
+    );
+    console.log('Deleted records:', deleteResult.affectedRows);
+    
+    console.log('Inserting new record...');
+    const [insertResult] = await pool.query(
+      'INSERT INTO teacher_level (teacher_id, level_id, position, start_date, end_date) VALUES (?, ?, ?, ?, ?)',
+      [teacher_id, level_id, position || null, start_date || null, end_date || null]
+    );
+    console.log('Insert result:', insertResult);
+    console.log('New record created with ID:', insertResult.insertId);
+    
     res.json({ ok: true });
   } catch (err) {
+    console.error('PUT /teacher-levels error:', err);
     res.status(400).json({ error: err?.sqlMessage || err?.message || 'Update teacher-level failed' });
   }
 });
 
 adminRouter.delete('/teacher-levels', async (req, res) => {
   const { teacher_id, level_id } = req.query;
+  console.log('DELETE /teacher-levels - Query params:', { teacher_id, level_id });
+  
   if (!teacher_id || !level_id) return res.status(400).json({ error: 'teacher_id và level_id bắt buộc' });
+  
   try {
-    await pool.query('DELETE FROM teacher_level WHERE teacher_id=? AND level_id=?', [teacher_id, level_id])
+    // Check if teacher is currently a homeroom teacher
+    console.log('Checking if teacher is homeroom teacher...');
+    const [homeroomCheck] = await pool.query(
+      'SELECT COUNT(*) as count FROM classes WHERE homeroom_teacher_id = ?',
+      [teacher_id]
+    );
+    console.log('Homeroom teacher check result:', homeroomCheck);
+    
+    if (homeroomCheck[0].count > 0) {
+      console.log('Teacher is currently a homeroom teacher, cannot delete');
+      return res.status(400).json({ error: 'Giáo viên đang là giáo viên chủ nhiệm không thể xóa' });
+    }
+    
+    console.log('Deleting teacher-level record...');
+    const [result] = await pool.query('DELETE FROM teacher_level WHERE teacher_id=? AND level_id=?', [teacher_id, level_id]);
+    console.log('Delete result:', result);
+    console.log('Rows affected:', result.affectedRows);
+    
     res.json({ ok: true });
   } catch (err) {
+    console.error('DELETE /teacher-levels error:', err);
     res.status(400).json({ error: err?.sqlMessage || err?.message || 'Delete teacher-level failed' });
   }
 });
@@ -1279,54 +1332,4 @@ adminRouter.post('/periods', async (req, res) => {
     res.status(400).json({ error: err?.sqlMessage || err?.message || 'Create period failed' });
   }
 });
-
-adminRouter.get('/periods', async (req, res) => {
-  const { level_id } = req.query;
-  try {
-    const [rows] = await pool.query(
-      level_id ? 'SELECT * FROM periods WHERE level_id=? ORDER BY day_of_week, period_index' : 'SELECT * FROM periods ORDER BY level_id, day_of_week, period_index',
-      level_id ? [level_id] : []
-    );
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to list periods' });
-  }
-});
-adminRouter.post('/timetable-entries', async (req, res) => {
-  const { term_id, class_id, subject_id, teacher_user_id, day_of_week, period_index } = req.body;
-  try {
-    const [r] = await pool.query(
-      'INSERT INTO timetable_entries (term_id, class_id, subject_id, teacher_user_id, day_of_week, period_index) VALUES (?, ?, ?, ?, ?, ?)',
-      [term_id, class_id, subject_id, teacher_user_id, day_of_week, period_index]
-    );
-    res.status(201).json({ id: r.insertId });
-  } catch (err) {
-    res.status(400).json({ error: 'Create timetable entry failed' });
-  }
-});
-
-adminRouter.get('/timetable-entries', async (req, res) => {
-  const { term_id, class_id, teacher_user_id } = req.query;
-  try {
-    const where = [];
-    const params = [];
-    if (term_id) { where.push('term_id=?'); params.push(term_id); }
-    if (class_id) { where.push('class_id=?'); params.push(class_id); }
-    if (teacher_user_id) { where.push('teacher_user_id=?'); params.push(teacher_user_id); }
-    const sql = `
-      SELECT te.*, c.name AS class_name, s.name AS subject_name, u.username AS teacher_name
-      FROM timetable_entries te
-      JOIN classes c ON c.id = te.class_id
-      JOIN subjects s ON s.id = te.subject_id
-      JOIN users u ON u.id = te.teacher_user_id
-      ${where.length? 'WHERE '+where.join(' AND '): ''}
-      ORDER BY te.day_of_week, te.period_index
-    `;
-    const [rows] = await pool.query(sql, params);
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to list timetable entries' });
-  }
-});
-
 

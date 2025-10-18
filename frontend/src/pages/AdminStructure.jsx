@@ -165,55 +165,59 @@ export default function AdminStructure(){
   }
 
   return (
-    <div className="row" style={{alignItems:'flex-start'}}>
-      <div className="card" style={{width:420, maxWidth:'100%'}}>
+    <div className="user-page">
+      <div className="card user-top-card">
         <h3>Quản lý cơ cấu tổ chức</h3>
         
         {msg && (
-          <div className={`mt16 input-help${msgType==='error'? ' error':''}`} style={{fontSize:14}}>
+          <div className={`user-alert${msgType==='error'? ' user-alert--error': ' user-alert--success'}`}>
             {msg}
           </div>
         )}
-        <div className="mt24">
-          <h4>Cấp học</h4>
-          <div className="mt16">
-            <div className="mt16">
-              <input className={`input${errorsLevel.code? ' input-error':''}`} placeholder="Mã (vd: PRIMARY, THCS, THPT)" value={newLevel.code} onChange={e=>setNewLevel(v=>({...v,code:e.target.value}))} />
-              {errorsLevel.code && <div className="input-help error">{errorsLevel.code}</div>}
-            </div>
-            <div className="mt16">
-              <input className={`input${errorsLevel.name? ' input-error':''}`} placeholder="Tên cấp" value={newLevel.name} onChange={e=>setNewLevel(v=>({...v,name:e.target.value}))} />
-              {errorsLevel.name && <div className="input-help error">{errorsLevel.name}</div>}
-            </div>
-            <div className="mt16">
-              <input className={`input${errorsLevel.sort_order? ' input-error':''}`} placeholder="Thứ tự xuất hiện" value={newLevel.sort_order} onChange={e=>setNewLevel(v=>({...v,sort_order:e.target.value}))} />
-              {errorsLevel.sort_order && <div className="input-help error">{errorsLevel.sort_order}</div>}
-            </div>
-            <div className="mt16"><button className="btn" onClick={saveLevel}>Thêm cấp</button></div>
-          </div>
-        </div>
         
-        <div className="mt24">
-          <h4>Khối lớp</h4>
-          <div className="mt16">
-            <div className="row">
-              <select className={`input${errorsGrade.level_id? ' input-error':''}`} value={newGrade.level_id} onChange={e=>setNewGrade(v=>({...v,level_id:e.target.value}))} style={{flex:1}}>
+        <div className="user-form-grid">
+          <div className="user-form-section">
+            <h4>Cấp học</h4>
+            <div className="field">
+              <label className="field-label">Mã cấp</label>
+              <input className={`input${errorsLevel.code? ' input-error':''}`} placeholder="Mã (vd: PRIMARY, THCS, THPT)" value={newLevel.code} onChange={e=>setNewLevel(v=>({...v,code:e.target.value}))} />
+              {errorsLevel.code && <div className="field-error">{errorsLevel.code}</div>}
+            </div>
+            <div className="field">
+              <label className="field-label">Tên cấp</label>
+              <input className={`input${errorsLevel.name? ' input-error':''}`} placeholder="Tên cấp" value={newLevel.name} onChange={e=>setNewLevel(v=>({...v,name:e.target.value}))} />
+              {errorsLevel.name && <div className="field-error">{errorsLevel.name}</div>}
+            </div>
+            <div className="field">
+              <label className="field-label">Thứ tự</label>
+              <input className={`input${errorsLevel.sort_order? ' input-error':''}`} placeholder="Thứ tự xuất hiện" value={newLevel.sort_order} onChange={e=>setNewLevel(v=>({...v,sort_order:e.target.value}))} />
+              {errorsLevel.sort_order && <div className="field-error">{errorsLevel.sort_order}</div>}
+            </div>
+          </div>
+
+          <div className="user-form-section">
+            <h4>Khối lớp</h4>
+            <div className="field">
+              <label className="field-label">Cấp học</label>
+              <select className={`input${errorsGrade.level_id? ' input-error':''}`} value={newGrade.level_id} onChange={e=>setNewGrade(v=>({...v,level_id:e.target.value}))}>
                 <option value="" disabled>Cấp</option>
                 {levels.sort((a,b)=> (a.sort_order||0)-(b.sort_order||0)).map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
               </select>
-              <input className={`input${errorsGrade.grade_number? ' input-error':''}`} placeholder="Số khối (vd: 1, 2, 6, 10)" value={newGrade.grade_number} onChange={e=>setNewGrade(v=>({...v,grade_number:e.target.value}))} style={{flex:1}} />
+              {errorsGrade.level_id && <div className="field-error">{errorsGrade.level_id}</div>}
             </div>
-            {errorsGrade.level_id && <div className="input-help error">{errorsGrade.level_id}</div>}
-            {errorsGrade.grade_number && <div className="input-help error">{errorsGrade.grade_number}</div>}
-            <div className="mt16"><button className="btn" onClick={async()=>{ await saveGrade(); reload('GRADES') }}>Thêm khối</button></div>
+            <div className="field">
+              <label className="field-label">Số khối</label>
+              <input className={`input${errorsGrade.grade_number? ' input-error':''}`} placeholder="Số khối (vd: 1, 2, 6, 10)" value={newGrade.grade_number} onChange={e=>setNewGrade(v=>({...v,grade_number:e.target.value}))} />
+              {errorsGrade.grade_number && <div className="field-error">{errorsGrade.grade_number}</div>}
+            </div>
           </div>
-        </div>
-        <div className="mt24">
-          <h4>Lớp học</h4>
-          <div className="mt16">
-            <div className="mt16">
+
+          <div className="user-form-section">
+            <h4>Lớp học</h4>
+            <div className="field">
+              <label className="field-label">Khối</label>
               <select className={`input${errorsClass.grade_id? ' input-error':''}`} value={newClass.grade_id} onChange={e=>setNewClass(v=>({...v,grade_id:e.target.value}))}>
                 <option value="" disabled>Chọn khối</option>
                 {grades.map(g=>{
@@ -223,9 +227,18 @@ export default function AdminStructure(){
                   )
                 })}
               </select>
-              {errorsClass.grade_id && <div className="input-help error">{errorsClass.grade_id}</div>}
+              {errorsClass.grade_id && <div className="field-error">{errorsClass.grade_id}</div>}
             </div>
-            <div className="mt16"><input className={`input${errorsClass.name? ' input-error':''}`} placeholder="Tên lớp (vd: 1A1, 10A2)" value={newClass.name} onChange={e=>setNewClass(v=>({...v,name:e.target.value}))} />{errorsClass.name && <div className="input-help error">{errorsClass.name}</div>}</div>
+            <div className="field">
+              <label className="field-label">Tên lớp</label>
+              <input className={`input${errorsClass.name? ' input-error':''}`} placeholder="Tên lớp (vd: 1A1, 10A2)" value={newClass.name} onChange={e=>setNewClass(v=>({...v,name:e.target.value}))} />
+              {errorsClass.name && <div className="field-error">{errorsClass.name}</div>}
+            </div>
+            <div className="field">
+              <label className="field-label">Phòng học</label>
+              <input className={`input${errorsClass.room_name? ' input-error':''}`} placeholder="Phòng học" value={newClass.room_name} onChange={e=>setNewClass(v=>({...v,room_name:e.target.value}))} />
+              {errorsClass.room_name && <div className="field-error">{errorsClass.room_name}</div>}
+            </div>
             <HomeroomTeacherSelect
               key={`homeroom-${newClass.grade_id}-${newClass.homeroom_teacher_id}`}
               levels={levels}
@@ -237,12 +250,17 @@ export default function AdminStructure(){
               value={newClass.homeroom_teacher_id}
               onChange={id=>setNewClass(v=>({...v,homeroom_teacher_id:id}))}
             />
-            <div className="mt16"><input className={`input${errorsClass.room_name? ' input-error':''}`} placeholder="Phòng học" value={newClass.room_name} onChange={e=>setNewClass(v=>({...v,room_name:e.target.value}))} />{errorsClass.room_name && <div className="input-help error">{errorsClass.room_name}</div>}</div>
-            <div className="mt16"><button className="btn" onClick={async()=>{ await saveClass(); reloadAll() }}>Thêm lớp</button></div>
           </div>
         </div>
+
+        <div className="user-actions">
+          <button className="btn" onClick={saveLevel}>Thêm cấp</button>
+          <button className="btn" onClick={async()=>{ await saveGrade(); reload('GRADES') }}>Thêm khối</button>
+          <button className="btn" onClick={async()=>{ await saveClass(); reloadAll() }}>Thêm lớp</button>
+        </div>
       </div>
-      <div style={{flex:1}}>
+
+      <div className="card user-list-card">
         <div className="row" style={{justifyContent:'flex-start', flexWrap:'wrap'}}>
           {['LEVELS','GRADES','CLASSES'].map(t => (
             <button key={t} className={`btn ${activeTab===t? '': 'secondary'} mt16`} onClick={()=>{ setActiveTab(t); reload(t) }}>
@@ -251,25 +269,21 @@ export default function AdminStructure(){
           ))}
           <button className={`btn ${activeTab===''? '': 'secondary'} mt16`} onClick={()=> setActiveTab('')}>Ẩn</button>
         </div>
-        <div className="card mt16" style={{minHeight:200}}>
+        <div className="mt16" style={{minHeight:200}}>
           <h3 style={{marginTop:0}}>{activeTab? (activeTab==='LEVELS'? 'Danh sách Cấp học' : activeTab==='GRADES'? 'Danh sách Khối' : 'Danh sách Lớp học') : 'Chọn danh mục để xem'}</h3>
           {activeTab && (
             <div className="mt16">
-              <div className="row" style={{justifyContent:'space-between', flexWrap:'wrap'}}>
-                <input className="input" style={{flex:1}} placeholder="Tìm kiếm" value={searchQuery} onChange={e=>{ setSearchQuery(e.target.value); setCurrentPage(1) }} />
-                <div style={{width:12}} />
+              <div className="user-toolbar">
+                <input className="input user-toolbar__item user-toolbar__item--search" placeholder="Tìm kiếm" value={searchQuery} onChange={e=>{ setSearchQuery(e.target.value); setCurrentPage(1) }} />
                 {(activeTab === 'GRADES' || activeTab === 'CLASSES') && (
-                  <>
-                    <select className="input" style={{width:160}} value={filterLevel} onChange={e=>{ setFilterLevel(e.target.value); setCurrentPage(1) }}>
-                      <option value="">Lọc theo cấp học</option>
-                      {levels.map(level => (
-                        <option key={level.id} value={level.id}>{level.name}</option>
-                      ))}
-                    </select>
-                    <div style={{width:12}} />
-                  </>
+                  <select className="input user-toolbar__item" value={filterLevel} onChange={e=>{ setFilterLevel(e.target.value); setCurrentPage(1) }}>
+                    <option value="">Lọc theo cấp học</option>
+                    {levels.map(level => (
+                      <option key={level.id} value={level.id}>{level.name}</option>
+                    ))}
+                  </select>
                 )}
-                <select className="input" style={{width:140}} value={pageSize} onChange={e=>{ setPageSize(parseInt(e.target.value,10)); setCurrentPage(1) }}>
+                <select className="input user-toolbar__item" value={pageSize} onChange={e=>{ setPageSize(parseInt(e.target.value,10)); setCurrentPage(1) }}>
                   <option value={5}>5 / trang</option>
                   <option value={10}>10 / trang</option>
                   <option value={100}>100 / trang</option>

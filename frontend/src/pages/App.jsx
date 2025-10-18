@@ -138,9 +138,9 @@ function Shell(){
           {user.role==='ADMIN' && (
             <>
               <NavLink to="/admin/users" onClick={closeMobileMenu}>Quản lý người dùng</NavLink>
-              <NavLink to="/admin/student-parents" onClick={closeMobileMenu}>Liên kết phụ huynh</NavLink>
               <NavLink to="/admin/teacher-levels" onClick={closeMobileMenu}>Quản lý giáo viên theo cấp</NavLink>
               <NavLink to="/admin/structure" onClick={closeMobileMenu}>Quản lý cơ cấu</NavLink>
+              <NavLink to="/admin/student-parents" onClick={closeMobileMenu}>Quản lý thông tin học sinh</NavLink>
               <NavLink to="/admin/academic" onClick={closeMobileMenu}>Quản lý học vụ</NavLink>
               <NavLink to="/admin/timetable" onClick={closeMobileMenu}>Thời khóa biểu</NavLink>
             </>

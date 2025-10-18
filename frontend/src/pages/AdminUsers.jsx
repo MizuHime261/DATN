@@ -44,8 +44,7 @@ export default function AdminUsers(){
   const [errors, setErrors] = useState({})
   const [msg, setMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
-  const [roleLists, setRoleLists] = useState({})
-  const [activeRole, setActiveRole] = useState('')
+  const [allUsers, setAllUsers] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [pageSize, setPageSize] = useState(10)
   const [currentPage, setCurrentPage] = useState(1)
@@ -55,22 +54,18 @@ export default function AdminUsers(){
   const [filterRole, setFilterRole] = useState('')
   const hiddenDateRef = useRef(null)
 
-  async function loadByRole(role){
-    if (!allowedRoles.includes(role)) return
+  async function loadAllUsers(){
     try{
-      const { data } = await axios.get('/api/admin/users', { params: { role } })
-      setRoleLists(prev => ({ ...prev, [role]: data }))
+      const { data } = await axios.get('/api/admin/users')
+      setAllUsers(data)
     }catch(_e){
-      setRoleLists(prev => ({ ...prev, [role]: [] }))
+      setAllUsers([])
     }
   }
 
   useEffect(()=>{
-    setCurrentPage(1)
-    setSearchQuery('')
-    setSortKey('id')
-    setSortDir('asc')
-  }, [activeRole])
+    loadAllUsers()
+  }, [])
   
   function generatePassword(usernameVal, birthdateVal){
     const lower = (usernameVal || '').toLowerCase()
@@ -122,12 +117,7 @@ export default function AdminUsers(){
       const { data } = await axios.post('/api/admin/users', payload)
       setSuccessMsg('Tạo thành công: ' + data.id)
       try{
-        if (activeRole === role) {
-          await loadByRole(role)
-        } else if (!activeRole) {
-          setActiveRole(role)
-          await loadByRole(role)
-        }
+        await loadAllUsers()
       }catch(_e){}
       setEmail(''); setUsername(''); setGender(''); setBirthdate(''); setBirthdateText(''); setRole(''); setPhone(''); setPassword(''); setErrors({})
     }catch(err){
@@ -204,17 +194,10 @@ export default function AdminUsers(){
       </div>
 
       <div className="card user-list-card">
-        <div className="row" style={{justifyContent:'flex-start', flexWrap:'wrap'}}>
-          {allowedRoles.map(r => (
-            <button key={r} className={`btn ${activeRole===r? '': 'secondary'} mt16`} onClick={async ()=>{ setActiveRole(r); if (!roleLists[r]) await loadByRole(r) }}>Danh sách {roleLabel[r]}</button>
-          ))}
-          <button className={`btn ${activeRole===''? '': 'secondary'} mt16`} onClick={()=> setActiveRole('')}>Ẩn</button>
-        </div>
         <div className="mt16" style={{minHeight:200}}>
-          <h3 style={{marginTop:0}}>{activeRole? `Danh sách ${roleLabel[activeRole]}` : 'Chọn nhóm tài khoản để xem'}</h3>
-          {activeRole && (
-            <div className="mt16">
-              {!(roleLists[activeRole] && roleLists[activeRole].length) ? <div>Không có dữ liệu</div> : (
+          <h3 style={{marginTop:0}}>Danh sách tất cả người dùng</h3>
+          <div className="mt16">
+            {!allUsers.length ? <div>Không có dữ liệu</div> : (
                 <>
                   <div className="user-toolbar">
                     <input className="input user-toolbar__item user-toolbar__item--search" placeholder="Tìm theo tên hoặc email" value={searchQuery} onChange={e=>{ setSearchQuery(e.target.value); setCurrentPage(1) }} />
@@ -246,22 +229,21 @@ export default function AdminUsers(){
                     </select>
                   </div>
                   <TableWithPaging
-                    rows={roleLists[activeRole]}
+                    rows={allUsers}
                     searchQuery={searchQuery}
                     sortKey={sortKey}
                     sortDir={sortDir}
                     pageSize={pageSize}
                     currentPage={currentPage}
                     setCurrentPage={setCurrentPage}
-                    activeRole={activeRole}
-                    onReload={()=>loadByRole(activeRole)}
+                    activeRole=""
+                    onReload={()=>loadAllUsers()}
                     filterGender={filterGender}
                     filterRole={filterRole}
                   />
                 </>
               )}
             </div>
-          )}
         </div>
       </div>
     </div>
@@ -330,7 +312,11 @@ function EditableRow({ user, onUpdated, onDeleted }){
         <td>{renderGender(user.gender)}</td>
         <td>{formatIsoToDdMmYyyy(user.birthdate)}</td>
         <td>{user.email}</td>
-        <td>{user.phone}</td>
+        <td>
+          {user.phone ? (
+            <span className="badge-phone">☎ {user.phone}</span>
+          ) : 'Chưa có'}
+        </td>
         <td>{roleLabel[user.role] || user.role}</td>
         <td>
           <button className="icon-btn" onClick={()=>setEditing(true)} title="Chỉnh sửa">✏️</button>
@@ -406,7 +392,7 @@ function TableWithPaging({ rows, searchQuery, sortKey, sortDir, pageSize, curren
     <>
       <div className="table-responsive">
         <table>
-          <thead><tr><th>ID</th><th>Họ và tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Email</th><th>Phone</th><th>Quyền</th><th></th></tr></thead>
+          <thead><tr><th>ID</th><th>Họ và tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Email</th><th>Số điện thoại</th><th>Quyền</th><th></th></tr></thead>
           <tbody>
             {pageRows.map(u => (
               <EditableRow key={u.id} user={u} onUpdated={onReload} onDeleted={onReload} />
