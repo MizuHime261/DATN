@@ -24,10 +24,19 @@ staffRouter.get('/grades', async (_req, res) => {
     res.status(500).json({ error: 'Failed to list grades' });
   }
 });
+
+staffRouter.get('/terms', async (_req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM terms ORDER BY term_order');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to list terms' });
+  }
+});
 // Create invoices in batch for all active students in a grade
 staffRouter.post('/invoices/batch-by-grade', async (req, res) => {
   console.log('Received request body:', req.body);
-  const { grade_id, billing_period_start, billing_period_end, items = [], replace } = req.body;
+  const { grade_id, billing_period_start, billing_period_end, status = 'DRAFT', items = [], replace } = req.body;
   
   console.log('Parsed values:', {
     grade_id,
@@ -130,7 +139,7 @@ staffRouter.post('/invoices/batch-by-grade', async (req, res) => {
         }
         const [r] = await conn.query(
           `INSERT INTO invoices (student_user_id, level_id, billing_period_start, billing_period_end, status, total_cents)
-           VALUES (?, ?, ?, ?, 'DRAFT', 0)`, [s.id, level_id, billing_period_start, billing_period_end]
+           VALUES (?, ?, ?, ?, ?, 0)`, [s.id, level_id, billing_period_start, billing_period_end, status]
         );
         invoiceId = r.insertId; created++;
       } else {
@@ -138,6 +147,8 @@ staffRouter.post('/invoices/batch-by-grade', async (req, res) => {
         if (replace){
           // Replace: remove all items first
           await conn.query('DELETE FROM invoice_items WHERE invoice_id=?', [invoiceId]);
+          // Update status when replacing
+          await conn.query('UPDATE invoices SET status=? WHERE id=?', [status, invoiceId]);
         } else if (!isRegisteredForBoarding && mealItems.length){
           // Not replacing, but ensure MEAL items are not present when not registered
           await conn.query("DELETE FROM invoice_items WHERE invoice_id=? AND item_type='MEAL'", [invoiceId]);
@@ -154,7 +165,7 @@ staffRouter.post('/invoices/batch-by-grade', async (req, res) => {
         );
       }
       // Recalculate total; if no items remain, set total to 0
-      await conn.query('UPDATE invoices SET total_cents=(SELECT COALESCE(SUM(total_cents),0) FROM invoice_items WHERE invoice_id=?) WHERE id=?', [invoiceId, invoiceId]);
+      await conn.query('UPDATE invoices SET total_cents=(SELECT COALESCE(SUM(total_cents),0) FROM invoice_items WHERE invoice_id=?), status=? WHERE id=?', [invoiceId, status, invoiceId]);
     }
     await conn.commit();
     res.status(201).json({ ok:true, created, updated, students: students.length });

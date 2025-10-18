@@ -259,6 +259,19 @@ CREATE TABLE `meal_plans` (
 
 LOCK TABLES `meal_plans` WRITE;
 /*!40000 ALTER TABLE `meal_plans` DISABLE KEYS */;
+INSERT INTO `meal_plans` VALUES 
+(1,1,'2024-10-15','BREAKFAST','Bánh mì + Sữa',5000),
+(2,1,'2024-10-15','LUNCH','Cơm + Thịt kho + Canh chua',25000),
+(3,1,'2024-10-15','DINNER','Cơm + Cá chiên + Rau muống',20000),
+(4,1,'2024-10-16','BREAKFAST','Phở bò',30000),
+(5,1,'2024-10-16','LUNCH','Cơm + Gà nướng + Canh khổ qua',30000),
+(6,1,'2024-10-16','DINNER','Cơm + Tôm rang me + Rau cải',25000),
+(7,1,'2024-10-17','BREAKFAST','Bánh cuốn',20000),
+(8,1,'2024-10-17','LUNCH','Cơm + Thịt bò xào + Canh bí đỏ',35000),
+(9,1,'2024-10-17','DINNER','Cơm + Cá hấp + Rau lang',22000),
+(10,1,'2024-10-18','BREAKFAST','Bánh mì + Trứng',8000),
+(11,1,'2024-10-18','LUNCH','Cơm + Thịt heo quay + Canh chua cá',28000),
+(12,1,'2024-10-18','DINNER','Cơm + Gà luộc + Rau muống',25000);
 /*!40000 ALTER TABLE `meal_plans` ENABLE KEYS */;
 UNLOCK TABLES;
 

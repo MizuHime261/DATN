@@ -7,9 +7,11 @@ export default function StaffMeals(){
     level_id: '1', 
     plan_date: '', 
     meal_type: 'LUNCH', 
-    title: '' 
+    title: '',
+    price_cents: ''
   })
-  const [filters, setFilters] = useState({ level_id: '', date_from: '', date_to: '', meal_type: '' })
+  const [filters, setFilters] = useState({ term_id: '' })
+  const [terms, setTerms] = useState([])
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('')
   const [loading, setLoading] = useState(false)
@@ -37,24 +39,34 @@ export default function StaffMeals(){
     }
   }
 
+  async function loadTerms(){
+    try {
+      const { data } = await axios.get('/api/staff/terms')
+      setTerms(data)
+    } catch (error) {
+      console.error('Error loading terms:', error)
+    }
+  }
+
   async function load(){
     setLoading(true)
     try {
       const params = {}
-      if (filters.level_id) params.level_id = filters.level_id
       
       const { data } = await axios.get('/api/staff/meal-plans', { params })
       
-      // Filter on frontend if needed
+      // Filter on frontend by semester only
       let filteredData = data
-      if (filters.date_from) {
-        filteredData = filteredData.filter(row => new Date(row.plan_date) >= new Date(filters.date_from))
-      }
-      if (filters.date_to) {
-        filteredData = filteredData.filter(row => new Date(row.plan_date) <= new Date(filters.date_to))
-      }
-      if (filters.meal_type) {
-        filteredData = filteredData.filter(row => row.meal_type === filters.meal_type)
+      if (filters.term_id) {
+        const term = terms.find(t => t.id.toString() === filters.term_id)
+        if (term) {
+          filteredData = filteredData.filter(row => {
+            const planDate = new Date(row.plan_date)
+            const startDate = new Date(term.start_date)
+            const endDate = new Date(term.end_date)
+            return planDate >= startDate && planDate <= endDate
+          })
+        }
       }
       
       setRows(filteredData)
@@ -65,7 +77,10 @@ export default function StaffMeals(){
     }
   }
   
-  useEffect(()=>{ load() },[])
+  useEffect(()=>{ 
+    load()
+    loadTerms()
+  },[])
 
   function showMessage(message, type = 'success') {
     setMsg(message)
@@ -85,12 +100,16 @@ export default function StaffMeals(){
       showMessage('Vui lòng nhập tên món ăn', 'error')
       return
     }
-    // No price validation; price is handled in invoices
+    if (!form.price_cents || form.price_cents <= 0) {
+      showMessage('Vui lòng nhập giá tiền hợp lệ', 'error')
+      return
+    }
 
     try {
       const payload = {
         ...form,
-        title: form.title.trim()
+        title: form.title.trim(),
+        price_cents: parseInt(form.price_cents)
       }
       
       await axios.post('/api/staff/meal-plans', payload)
@@ -101,7 +120,8 @@ export default function StaffMeals(){
         level_id: '1', 
         plan_date: '', 
         meal_type: 'LUNCH', 
-        title: '' 
+        title: '',
+        price_cents: ''
       })
       
       await load()
@@ -188,6 +208,7 @@ export default function StaffMeals(){
                   <option value="SNACK">🍪 Bữa phụ</option>
                 </select>
               </div>
+
             </div>
           </div>
 
@@ -204,7 +225,16 @@ export default function StaffMeals(){
                 />
               </div>
               
-              {/* Giá tiền bỏ khỏi form; được tạo ở hóa đơn */}
+              <div className="form-field">
+                <label className="field-label">Giá tiền (VNĐ)</label>
+                <input 
+                  className="input" 
+                  type="number"
+                  placeholder="VD: 25000" 
+                  value={form.price_cents} 
+                  onChange={e=>setForm(f=>({...f, price_cents:e.target.value}))} 
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -229,41 +259,28 @@ export default function StaffMeals(){
           <div className="meal-filters">
             <select 
               className="input filter-input" 
-              value={filters.level_id} 
-              onChange={e=>setFilters(f=>({...f, level_id:e.target.value}))}
+              value={filters.term_id} 
+              onChange={e=>setFilters(f=>({...f, term_id:e.target.value}))}
             >
-              <option value="">Tất cả cấp học</option>
-              <option value="1">Tiểu học</option>
-              <option value="2">THCS</option>
-              <option value="3">THPT</option>
+              <option value="">Tất cả học kỳ</option>
+              {terms.map(term => (
+                <option key={term.id} value={term.id}>
+                  {term.name} ({toTextFromIso(term.start_date)} - {toTextFromIso(term.end_date)})
+                </option>
+              ))}
             </select>
-            <select 
-              className="input filter-input" 
-              value={filters.meal_type} 
-              onChange={e=>setFilters(f=>({...f, meal_type:e.target.value}))}
-            >
-              <option value="">Tất cả bữa ăn</option>
-              <option value="BREAKFAST">Bữa sáng</option>
-              <option value="LUNCH">Bữa trưa</option>
-              <option value="DINNER">Bữa tối</option>
-              <option value="SNACK">Bữa phụ</option>
-            </select>
-            <input 
-              type="date" 
-              className="input filter-input" 
-              placeholder="Từ ngày"
-              value={filters.date_from}
-              onChange={e=>setFilters(f=>({...f, date_from:e.target.value}))}
-            />
-            <input 
-              type="date" 
-              className="input filter-input" 
-              placeholder="Đến ngày"
-              value={filters.date_to}
-              onChange={e=>setFilters(f=>({...f, date_to:e.target.value}))}
-            />
             <button className="btn btn-search" onClick={load}>
               🔍 Lọc
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => {
+                setFilters({ term_id: '' })
+                setTimeout(() => load(), 100) // Small delay to ensure state is updated
+              }}
+              title="Xóa bộ lọc"
+            >
+              🗑️ Xóa lọc
             </button>
           </div>
         </div>
@@ -288,7 +305,7 @@ export default function StaffMeals(){
                     <th>Ngày phục vụ</th>
                     <th>Bữa ăn</th>
                     <th>Thực đơn</th>
-                    {/* Ẩn giá tiền; chỉ hiển thị cấp học */}
+                    <th>Giá tiền</th>
                     <th>Cấp học</th>
                     <th>Thao tác</th>
                   </tr>
@@ -308,6 +325,7 @@ export default function StaffMeals(){
                         </span>
                       </td>
                       <td className="meal-title">{r.title}</td>
+                      <td className="meal-price">{r.price_cents ? `${r.price_cents.toLocaleString()} VNĐ` : 'Chưa có giá'}</td>
                       <td className="meal-school">Cấp {r.level_id}</td>
                       <td>
                         <button 
@@ -318,7 +336,7 @@ export default function StaffMeals(){
                               plan_date: r.plan_date,
                               meal_type: r.meal_type,
                               title: r.title,
-                              
+                              price_cents: r.price_cents || ''
                             })
                           }}
                           title="Chỉnh sửa"

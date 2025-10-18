@@ -5,6 +5,306 @@ import { requireAuth, requireRoles } from '../middleware/auth.js';
 export const parentRouter = express.Router();
 
 parentRouter.use(requireAuth, requireRoles('PARENT', 'ADMIN'));
+
+// Get terms for parent
+parentRouter.get('/terms', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM terms ORDER BY term_order');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to list terms' });
+  }
+});
+
+// Get meals for a specific term
+parentRouter.get('/meals', async (req, res) => {
+  const { term_id } = req.query;
+  try {
+    if (!term_id) {
+      return res.status(400).json({ error: 'term_id is required' });
+    }
+    
+    // Get term dates
+    const [termRows] = await pool.query(
+      'SELECT start_date, end_date FROM terms WHERE id = ?',
+      [term_id]
+    );
+    
+    if (termRows.length === 0) {
+      return res.status(404).json({ error: 'Term not found' });
+    }
+    
+    const { start_date, end_date } = termRows[0];
+    
+    // Get meals within term date range
+    const [rows] = await pool.query(
+      `SELECT mp.*, COALESCE(l.name, 'Unknown') as level_name 
+       FROM meal_plans mp 
+       LEFT JOIN levels l ON l.id = mp.level_id
+       WHERE mp.plan_date BETWEEN ? AND ?
+       ORDER BY mp.plan_date, mp.meal_type`,
+      [start_date, end_date]
+    );
+    
+    res.json(rows);
+  } catch (err) {
+    console.error('Error in meals API:', err);
+    res.status(500).json({ error: 'Failed to load meals' });
+  }
+});
+
+// Get registered meals for current parent's children
+parentRouter.get('/registered-meals', async (req, res) => {
+  const { term_id } = req.query;
+  try {
+    if (!term_id) {
+      return res.status(400).json({ error: 'term_id is required' });
+    }
+    
+    // Get all children of this parent
+    const [children] = await pool.query(
+      'SELECT student_id FROM parent_student WHERE parent_id = ?',
+      [req.user.id]
+    );
+    
+    if (children.length === 0) {
+      return res.json([]);
+    }
+    
+    const studentIds = children.map(c => c.student_id);
+    const placeholders = studentIds.map(() => '?').join(',');
+    
+    // Get registered meals
+    const [rows] = await pool.query(
+      `SELECT mr.*, mp.plan_date, mp.title, mp.price_cents
+       FROM meal_registrations mr
+       JOIN meal_plans mp ON mp.id = mr.meal_id
+       WHERE mr.student_user_id IN (${placeholders}) 
+       AND mp.plan_date BETWEEN (
+         SELECT start_date FROM terms WHERE id = ?
+       ) AND (
+         SELECT end_date FROM terms WHERE id = ?
+       )
+       ORDER BY mp.plan_date`,
+      [...studentIds, term_id, term_id]
+    );
+    
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load registered meals' });
+  }
+});
+
+// Register for a meal
+parentRouter.post('/meal-registration/:mealId', async (req, res) => {
+  const { mealId } = req.params;
+  try {
+    // Verify meal exists and get its details
+    const [mealRows] = await pool.query(
+      'SELECT mp.*, l.name as level_name FROM meal_plans mp JOIN levels l ON l.id = mp.level_id WHERE mp.id = ?',
+      [mealId]
+    );
+    
+    if (mealRows.length === 0) {
+      return res.status(404).json({ error: 'Meal not found' });
+    }
+    
+    const meal = mealRows[0];
+    
+    // Check if meal date is in the past
+    const today = new Date();
+    const mealDate = new Date(meal.plan_date);
+    today.setHours(0, 0, 0, 0);
+    mealDate.setHours(0, 0, 0, 0);
+    
+    if (mealDate < today) {
+      return res.status(400).json({ error: 'Cannot register for past meals' });
+    }
+    
+    // Get all children of this parent
+    const [children] = await pool.query(
+      'SELECT student_id FROM parent_student WHERE parent_id = ?',
+      [req.user.id]
+    );
+    
+    if (children.length === 0) {
+      return res.status(400).json({ error: 'No children found' });
+    }
+    
+    // For now, register the first child (can be extended to select specific child)
+    const studentId = children[0].student_id;
+    
+    // Check if already registered
+    const [existing] = await pool.query(
+      'SELECT id FROM meal_registrations WHERE student_user_id = ? AND meal_id = ?',
+      [studentId, mealId]
+    );
+    
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'Already registered for this meal' });
+    }
+    
+    // Create meal registration
+    await pool.query(
+      'INSERT INTO meal_registrations (student_user_id, meal_id, registered_at) VALUES (?, ?, NOW())',
+      [studentId, mealId]
+    );
+    
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to register for meal' });
+  }
+});
+
+// Cancel meal registration
+parentRouter.delete('/meal-registration/:mealId', async (req, res) => {
+  const { mealId } = req.params;
+  try {
+    // Get all children of this parent
+    const [children] = await pool.query(
+      'SELECT student_id FROM parent_student WHERE parent_id = ?',
+      [req.user.id]
+    );
+    
+    if (children.length === 0) {
+      return res.status(400).json({ error: 'No children found' });
+    }
+    
+    const studentIds = children.map(c => c.student_id);
+    const placeholders = studentIds.map(() => '?').join(',');
+    
+    // Get meal date to check if it's in the past
+    const [mealRows] = await pool.query(
+      'SELECT plan_date FROM meal_plans WHERE id = ?',
+      [mealId]
+    );
+    
+    if (mealRows.length === 0) {
+      return res.status(404).json({ error: 'Meal not found' });
+    }
+    
+    const mealDate = new Date(mealRows[0].plan_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    mealDate.setHours(0, 0, 0, 0);
+    
+    // If meal is in the past, cannot cancel
+    if (mealDate < today) {
+      return res.status(400).json({ error: 'Cannot cancel registration for past meals' });
+    }
+    
+    // Delete meal registration
+    const [result] = await pool.query(
+      `DELETE FROM meal_registrations 
+       WHERE student_user_id IN (${placeholders}) AND meal_id = ?`,
+      [...studentIds, mealId]
+    );
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to cancel meal registration' });
+  }
+});
+
+// Generate invoices for registered meals
+parentRouter.post('/generate-meal-invoices', async (req, res) => {
+  try {
+    // Get all children of this parent
+    const [children] = await pool.query(
+      'SELECT student_id FROM parent_student WHERE parent_id = ?',
+      [req.user.id]
+    );
+    
+    if (children.length === 0) {
+      return res.status(400).json({ error: 'No children found' });
+    }
+    
+    const studentIds = children.map(c => c.student_id);
+    const placeholders = studentIds.map(() => '?').join(',');
+    
+    // Get all registered meals for this month that don't have invoices yet
+    const currentDate = new Date();
+    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    
+    const [registeredMeals] = await pool.query(
+      `SELECT mr.student_user_id, mr.meal_id, mp.plan_date, mp.title, mp.price_cents, mp.level_id
+       FROM meal_registrations mr
+       JOIN meal_plans mp ON mp.id = mr.meal_id
+       WHERE mr.student_user_id IN (${placeholders})
+       AND mp.plan_date BETWEEN ? AND ?
+       AND NOT EXISTS (
+         SELECT 1 FROM invoice_items ii 
+         JOIN invoices i ON i.id = ii.invoice_id
+         WHERE i.student_user_id = mr.student_user_id
+         AND ii.description = mp.title
+         AND ii.item_type = 'MEAL'
+         AND DATE(ii.created_at) = DATE(mr.registered_at)
+       )
+       ORDER BY mr.student_user_id, mp.plan_date`,
+      [...studentIds, startOfMonth, endOfMonth]
+    );
+    
+    if (registeredMeals.length === 0) {
+      return res.json({ message: 'No new meal registrations to invoice', invoices_created: 0 });
+    }
+    
+    // Group by student
+    const mealsByStudent = {};
+    registeredMeals.forEach(meal => {
+      if (!mealsByStudent[meal.student_user_id]) {
+        mealsByStudent[meal.student_user_id] = [];
+      }
+      mealsByStudent[meal.student_user_id].push(meal);
+    });
+    
+    let invoicesCreated = 0;
+    
+    // Create invoices for each student
+    for (const [studentId, meals] of Object.entries(mealsByStudent)) {
+      // Create invoice for this month
+      const [invoiceResult] = await pool.query(
+        `INSERT INTO invoices (student_user_id, level_id, billing_period_start, billing_period_end, status, total_cents)
+         VALUES (?, ?, ?, ?, 'ISSUED', 0)`,
+        [studentId, meals[0].level_id, startOfMonth, endOfMonth]
+      );
+      
+      const invoiceId = invoiceResult.insertId;
+      
+      // Add meal items to invoice
+      for (const meal of meals) {
+        await pool.query(
+          `INSERT INTO invoice_items (invoice_id, item_type, description, quantity, unit_price_cents, total_cents)
+           VALUES (?, 'MEAL', ?, 1, ?, ?)`,
+          [invoiceId, meal.title, meal.price_cents, meal.price_cents]
+        );
+      }
+      
+      // Update invoice total
+      await pool.query(
+        'UPDATE invoices SET total_cents = (SELECT SUM(total_cents) FROM invoice_items WHERE invoice_id = ?) WHERE id = ?',
+        [invoiceId, invoiceId]
+      );
+      
+      invoicesCreated++;
+    }
+    
+    res.json({ 
+      message: 'Meal invoices generated successfully', 
+      invoices_created: invoicesCreated,
+      meals_processed: registeredMeals.length 
+    });
+    
+  } catch (err) {
+    console.error('Error generating meal invoices:', err);
+    res.status(500).json({ error: 'Failed to generate meal invoices' });
+  }
+});
+
 // List children linked with this parent
 parentRouter.get('/children', async (req, res) => {
   try {

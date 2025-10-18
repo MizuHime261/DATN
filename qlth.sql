@@ -334,3 +334,14 @@ CREATE TABLE IF NOT EXISTS subject_grades (
   CONSTRAINT fk_sg_subject FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
   CONSTRAINT fk_sg_grade   FOREIGN KEY (grade_id)   REFERENCES grades(id)   ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+-- Bảng đăng ký bữa ăn của học sinh
+CREATE TABLE IF NOT EXISTS meal_registrations (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  student_user_id INT NOT NULL,
+  meal_id INT NOT NULL,
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_meal_registration (student_user_id, meal_id),
+  CONSTRAINT fk_mr_student FOREIGN KEY (student_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_mr_meal FOREIGN KEY (meal_id) REFERENCES meal_plans(id) ON DELETE CASCADE
+) ENGINE=InnoDB;

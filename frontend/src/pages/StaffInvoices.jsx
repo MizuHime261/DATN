@@ -5,12 +5,11 @@ export default function StaffInvoices(){
   const [rows, setRows] = useState([])
   const [filters, setFilters] = useState({ student_user_id:'', status:'', school_id:'' })
   const [detail, setDetail] = useState(null)
-  const [item, setItem] = useState({ item_type:'OTHER', description:'', quantity:'1', unit_price_cents:'' })
   const [status, setStatus] = useState('ISSUED')
   const [loading, setLoading] = useState(false)
   const [grades, setGrades] = useState([])
   const [levels, setLevels] = useState([])
-  const [batch, setBatch] = useState({ grade_id:'', start:'', end:'', items:[{ item_type:'TUITION', description:'Học phí', quantity:'1', unit_price_cents:'' }] })
+  const [batch, setBatch] = useState({ grade_id:'', start:'', end:'', status:'ISSUED', items:[{ item_type:'TUITION', description:'', unit_price_cents:'' }] })
 
   function toIsoFromText(s){
     const m = /^\s*(\d{2})\/(\d{2})\/(\d{4})\s*$/.exec(s || '')
@@ -47,15 +46,7 @@ export default function StaffInvoices(){
   async function openInvoice(id){
     const { data } = await axios.get(`/api/staff/invoices/${id}`)
     setDetail(data)
-  }
-
-  async function addItem(){
-    await axios.post(`/api/staff/invoices/${detail.invoice.id}/items`, {
-      ...item,
-      quantity: Number(item.quantity||1),
-      unit_price_cents: Number(item.unit_price_cents||0)
-    })
-    await openInvoice(detail.invoice.id); await load()
+    setStatus(data.invoice.status) // Set current status when opening invoice
   }
 
   async function updateStatus(){
@@ -112,12 +103,28 @@ export default function StaffInvoices(){
                 </div>
               </div>
             </div>
+            
+            <div className="form-row">
+              <div className="form-field">
+                <label className="field-label">Trạng thái</label>
+                <select 
+                  className="input" 
+                  value={batch.status} 
+                  onChange={e=>setBatch(b=>({...b,status:e.target.value}))} 
+                >
+                  <option value="DRAFT">Nháp</option>
+                  <option value="ISSUED">Đã phát hành</option>
+                  <option value="PAID">Đã thanh toán</option>
+                  <option value="VOID">Đã hủy</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <div className="form-section">
             <div className="section-header">
               <h4 className="section-title">Khoản mục hóa đơn</h4>
-              <button className="btn secondary" onClick={()=>setBatch(b=>({ ...b, items:[...b.items, { item_type:'FEE', description:'Khoản khác', quantity:'1', unit_price_cents:'' }] }))}>
+              <button className="btn secondary" onClick={()=>setBatch(b=>({ ...b, items:[...b.items, { item_type:'TUITION', description:'', unit_price_cents:'' }] }))}>
                 + Thêm khoản mục
               </button>
             </div>
@@ -128,7 +135,6 @@ export default function StaffInvoices(){
                   <tr>
                     <th>Mô tả</th>
                     <th>Loại khoản</th>
-                    <th>Số lượng</th>
                     <th>Đơn giá (VNĐ)</th>
                     <th>Thao tác</th>
                   </tr>
@@ -148,23 +154,11 @@ export default function StaffInvoices(){
                         <select 
                           className="input table-input" 
                           value={it.item_type} 
-                          onChange={e=>setBatch(b=>{ const s=[...b.items]; s[idx]={...s[idx],item_type:e.target.value}; return {...b,items:s} })}
+                          onChange={e=>setBatch(b=>{ const s=[...b.items]; s[idx]={...s[idx],item_type:e.target.value}; return {...b,items:s} })} 
                         >
                           <option value="TUITION">Học phí</option>
-                          <option value="MEAL">Tiền ăn</option>
                           <option value="FEE">Phí khác</option>
-                          <option value="DISCOUNT">Giảm giá</option>
-                          <option value="OTHER">Khác</option>
                         </select>
-                      </td>
-                      <td>
-                        <input 
-                          className="input table-input" 
-                          type="number" 
-                          value={it.quantity} 
-                          onChange={e=>setBatch(b=>{ const s=[...b.items]; s[idx]={...s[idx],quantity:e.target.value}; return {...b,items:s} })} 
-                          placeholder="1"
-                        />
                       </td>
                       <td>
                         <input 
@@ -247,10 +241,11 @@ export default function StaffInvoices(){
                 grade_id: Number(batch.grade_id),
                 billing_period_start: isoStartDate,
                 billing_period_end: isoEndDate,
+                status: batch.status,
                 items: batch.items.filter(it => it.description && it.unit_price_cents).map(it=>({ 
-                  item_type: it.item_type || 'OTHER', 
+                  item_type: it.item_type || 'TUITION', 
                   description: it.description.trim(), 
-                  quantity: Number(it.quantity) || 1, 
+                  quantity: 1, // Always set quantity to 1
                   unit_price_cents: Number(it.unit_price_cents) || 0 
                 })),
                 replace: true
@@ -283,7 +278,8 @@ export default function StaffInvoices(){
                   grade_id:'', 
                   start:'', 
                   end:'', 
-                  items:[{ item_type:'TUITION', description:'Học phí', quantity:'1', unit_price_cents:'' }] 
+                  status:'ISSUED',
+                  items:[{ item_type:'TUITION', description:'', unit_price_cents:'' }] 
                 })
               } catch (error) {
                 console.error('Error creating invoices:', error)
@@ -380,7 +376,6 @@ export default function StaffInvoices(){
                         <span className={`status-badge status-${r.status.toLowerCase()}`}>
                           {r.status === 'DRAFT' ? 'Nháp' : 
                            r.status === 'ISSUED' ? 'Đã phát hành' :
-                           r.status === 'PARTIALLY_PAID' ? 'Thanh toán một phần' :
                            r.status === 'PAID' ? 'Đã thanh toán' : 
                            r.status === 'VOID' ? 'Đã hủy' : r.status}
                         </span>
@@ -428,7 +423,6 @@ export default function StaffInvoices(){
                 <span className={`status-badge status-${detail.invoice.status.toLowerCase()}`}>
                   {detail.invoice.status === 'DRAFT' ? 'Nháp' : 
                    detail.invoice.status === 'ISSUED' ? 'Đã phát hành' :
-                   detail.invoice.status === 'PARTIALLY_PAID' ? 'Thanh toán một phần' :
                    detail.invoice.status === 'PAID' ? 'Đã thanh toán' : 
                    detail.invoice.status === 'VOID' ? 'Đã hủy' : detail.invoice.status}
                 </span>
@@ -448,7 +442,6 @@ export default function StaffInvoices(){
                   <tr>
                     <th>Mô tả</th>
                     <th>Loại</th>
-                    <th>SL</th>
                     <th>Đơn giá</th>
                     <th>Thành tiền</th>
                   </tr>
@@ -459,13 +452,9 @@ export default function StaffInvoices(){
                       <td>{it.description}</td>
                       <td>
                         <span className={`item-type-badge type-${it.item_type.toLowerCase()}`}>
-                          {it.item_type === 'TUITION' ? 'Học phí' :
-                           it.item_type === 'MEAL' ? 'Tiền ăn' :
-                           it.item_type === 'FEE' ? 'Phí khác' :
-                           it.item_type === 'DISCOUNT' ? 'Giảm giá' : 'Khác'}
+                          {it.item_type === 'TUITION' ? 'Học phí' : 'Phí khác'}
                         </span>
                       </td>
-                      <td>{it.quantity}</td>
                       <td>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(it.unit_price_cents)}</td>
                       <td>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(it.total_cents)}</td>
                     </tr>
@@ -475,55 +464,16 @@ export default function StaffInvoices(){
             </div>
 
             <div className="detail-actions">
-              <div className="add-item-section">
-                <h5>Thêm khoản mục mới</h5>
-                <div className="add-item-form">
-                  <input 
-                    className="input" 
-                    placeholder="Mô tả" 
-                    value={item.description} 
-                    onChange={e=>setItem(i=>({...i,description:e.target.value}))} 
-                  />
-                  <input 
-                    className="input" 
-                    type="number" 
-                    placeholder="Số lượng" 
-                    value={item.quantity} 
-                    onChange={e=>setItem(i=>({...i,quantity:e.target.value}))} 
-                  />
-                  <input 
-                    className="input" 
-                    type="number" 
-                    placeholder="Đơn giá" 
-                    value={item.unit_price_cents} 
-                    onChange={e=>setItem(i=>({...i,unit_price_cents:e.target.value}))} 
-                  />
-                  <select 
-                    className="input" 
-                    value={item.item_type} 
-                    onChange={e=>setItem(i=>({...i,item_type:e.target.value}))}
-                  >
-                    <option value="TUITION">Học phí</option>
-                    <option value="MEAL">Tiền ăn</option>
-                    <option value="FEE">Phí khác</option>
-                    <option value="DISCOUNT">Giảm giá</option>
-                    <option value="OTHER">Khác</option>
-                  </select>
-                  <button className="btn" onClick={addItem}>+ Thêm</button>
-                </div>
-              </div>
-
               <div className="status-update-section">
                 <h5>Cập nhật trạng thái</h5>
                 <div className="status-update-form">
                   <select 
                     className="input" 
                     value={status} 
-                    onChange={e=>setStatus(e.target.value)}
+                    onChange={e=>setStatus(e.target.value)} 
                   >
                     <option value="DRAFT">Nháp</option>
                     <option value="ISSUED">Đã phát hành</option>
-                    <option value="PARTIALLY_PAID">Thanh toán một phần</option>
                     <option value="PAID">Đã thanh toán</option>
                     <option value="VOID">Đã hủy</option>
                   </select>
